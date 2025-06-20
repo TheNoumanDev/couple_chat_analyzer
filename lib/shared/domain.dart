@@ -2,6 +2,7 @@
 // Consolidated: All entities + repository interfaces
 
 import 'dart:io';
+export '../features/analysis/analysis_repository.dart';
 
 // ============================================================================
 // ENTITIES

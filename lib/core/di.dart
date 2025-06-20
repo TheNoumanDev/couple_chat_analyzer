@@ -1,15 +1,35 @@
-// core/di.dart
-// Consolidated: dependency_injection.dart
-
-import 'package:chatreport/features/analysis/enhanced_analyzers.dart';
+// ============================================================================
+// FILE: core/di.dart
+// ============================================================================
 import 'package:get_it/get_it.dart';
 import 'package:flutter/foundation.dart';
+
+// Data layer imports
 import '../data/local.dart';
-import '../data/parsers.dart';
+import '../data/parsers/chat_parser.dart';
+import '../data/parsers/whatsapp_text_parser.dart';
+import '../data/parsers/whatsapp_html_parser.dart';
 import '../data/repositories.dart';
+
+// Domain layer imports
 import '../shared/domain.dart';
-import '../features/import/import_feature.dart';
-import '../features/analysis/analysis_feature.dart';
+
+// Analysis feature imports
+import '../features/analysis/analysis_bloc.dart';
+import '../features/analysis/analysis_use_cases.dart';
+import '../features/analysis/analysis_repository.dart';
+import '../features/analysis/analyzers/message_analyzer.dart';
+import '../features/analysis/analyzers/time_analyzer.dart';
+import '../features/analysis/analyzers/user_analyzer.dart';
+import '../features/analysis/analyzers/content_analyzer.dart';
+import '../features/analysis/enhanced_analyzers.dart';
+
+// Import feature imports
+import '../features/import/import_bloc.dart';
+import '../features/import/import_use_cases.dart';
+import '../features/import/providers/file_provider.dart';
+
+// Reports feature imports
 import '../features/reports/reports_feature.dart';
 
 final getIt = GetIt.instance;
@@ -22,7 +42,7 @@ Future<void> initDependencies() async {
   await chatLocalDataSource.initDatabase();
   getIt.registerLazySingleton<ChatLocalDataSource>(() => chatLocalDataSource);
 
-  // Data sources
+  // Data sources and providers
   final fileProvider = FileProviderImpl();
   fileProvider.init();
   getIt.registerLazySingleton<FileProvider>(() => fileProvider);
@@ -46,36 +66,37 @@ Future<void> initDependencies() async {
         localDataSource: getIt<ChatLocalDataSource>(),
       ));
 
-  // Analyzers
+  // Core Analyzers
   getIt.registerFactory(() => MessageAnalyzer());
   getIt.registerFactory(() => TimeAnalyzer());
   getIt.registerFactory(() => UserAnalyzer());
   getIt.registerFactory(() => ContentAnalyzer());
-  // Add these new analyzer registrations
+
+  // Enhanced Analyzers (from existing enhanced_analyzers.dart)
   getIt.registerFactory(() => ConversationDynamicsAnalyzer());
   getIt.registerFactory(() => BehaviorPatternAnalyzer());
   getIt.registerFactory(() => RelationshipAnalyzer());
   getIt.registerFactory(() => ContentIntelligenceAnalyzer());
   getIt.registerFactory(() => TemporalInsightAnalyzer());
 
-  // Use cases
-  getIt.registerLazySingleton(() => ImportChatUseCase(getIt<ChatRepository>()));
-  getIt.registerLazySingleton(() => AnalyzeChatUseCase(
-        chatRepository: getIt<ChatRepository>(),
-        analysisRepository: getIt<AnalysisRepository>(),
-        messageAnalyzer: getIt<MessageAnalyzer>(),
-        timeAnalyzer: getIt<TimeAnalyzer>(),
-        userAnalyzer: getIt<UserAnalyzer>(),
-        contentAnalyzer: getIt<ContentAnalyzer>(),
-        // Add the enhanced analyzers
-        conversationDynamicsAnalyzer: getIt<ConversationDynamicsAnalyzer>(),
-        behaviorPatternAnalyzer: getIt<BehaviorPatternAnalyzer>(),
-        relationshipAnalyzer: getIt<RelationshipAnalyzer>(),
-        contentIntelligenceAnalyzer: getIt<ContentIntelligenceAnalyzer>(),
-        temporalInsightAnalyzer: getIt<TemporalInsightAnalyzer>(),
-      ));
-  getIt.registerLazySingleton(
-      () => GenerateReportUseCase(getIt<AnalysisRepository>()));
+  // Use Cases
+  getIt.registerFactory(() => ImportChatUseCase(getIt<ChatRepository>()));
+  
+  getIt.registerFactory(() => AnalyzeChatUseCase(
+    chatRepository: getIt<ChatRepository>(),
+    analysisRepository: getIt<AnalysisRepository>(),
+    messageAnalyzer: getIt<MessageAnalyzer>(),
+    timeAnalyzer: getIt<TimeAnalyzer>(),
+    userAnalyzer: getIt<UserAnalyzer>(),
+    contentAnalyzer: getIt<ContentAnalyzer>(),
+    conversationDynamicsAnalyzer: getIt<ConversationDynamicsAnalyzer>(),
+    behaviorPatternAnalyzer: getIt<BehaviorPatternAnalyzer>(),
+    relationshipAnalyzer: getIt<RelationshipAnalyzer>(),
+    contentIntelligenceAnalyzer: getIt<ContentIntelligenceAnalyzer>(),
+    temporalInsightAnalyzer: getIt<TemporalInsightAnalyzer>(),
+  ));
 
-  debugPrint("Dependencies initialized successfully");
+  getIt.registerFactory(() => GenerateReportUseCase(getIt<AnalysisRepository>()));
+
+  debugPrint("✅ Dependencies initialized successfully");
 }

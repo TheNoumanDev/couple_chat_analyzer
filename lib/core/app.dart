@@ -1,11 +1,7 @@
-// core/app.dart
-// Consolidated: app.dart + app_theme.dart + app_constants.dart + app_config.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../features/import/import_feature.dart';
-import '../features/import/import_ui.dart';
+import '../features/import/ui/home_page.dart';
 import 'di.dart';
 
 // ============================================================================
@@ -63,66 +59,36 @@ class AppTheme {
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
     ),
   );
 
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF25D366), // WhatsApp green
+      seedColor: const Color(0xFF25D366),
       brightness: Brightness.dark,
     ),
     textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-    cardTheme: CardTheme(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      elevation: 4,
-    ),
   );
 }
 
 // ============================================================================
-// MAIN APP WIDGET
+// MAIN APP
 // ============================================================================
 class ChatInsightApp extends StatelessWidget {
   const ChatInsightApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider<ImportBloc>(
-          create: (context) => ImportBloc(
-            importChatUseCase: getIt.get<ImportChatUseCase>(),
-            fileProvider: getIt.get<FileProvider>(),
-          ),
-        ),
-        // Add other BloCs here as needed
-      ],
-      child: MaterialApp(
-        title: AppConstants.appName,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const HomePage(),
-      ),
+    return MaterialApp(
+      title: AppConstants.appName,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      home: const HomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

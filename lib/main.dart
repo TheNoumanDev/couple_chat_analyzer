@@ -1,6 +1,3 @@
-// main.dart
-// Updated main file for optimized structure
-
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/app.dart';

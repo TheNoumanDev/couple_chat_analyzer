@@ -15,7 +15,7 @@ abstract class ChatLocalDataSource {
   Future<List<Chat>> getChats();
   Future<Chat?> getChatById(String id);
   Future<void> deleteChat(String id);
-  Future<void> saveAnalysisResult(AnalysisResult result);
+  Future<void> saveAnalysisResult(AnalysisResult result, Map<String, dynamic> results);
   Future<AnalysisResult?> getAnalysisResult(String chatId);
 }
 
@@ -142,12 +142,12 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   @override
-  Future<void> saveAnalysisResult(AnalysisResult result) async {
+  Future<void> saveAnalysisResult(AnalysisResult result, Map<String, dynamic> results) async {
     debugPrint("Saving analysis result for chat: ${result.chatId}");
     await _ensureInitialized();
     
     try {
-      await _analysisBox.put(result.chatId, result.toJson());
+      await _analysisBox.put(result.chatId, results);
       debugPrint("Analysis result saved successfully");
     } catch (e) {
       debugPrint("Error saving analysis result: $e");

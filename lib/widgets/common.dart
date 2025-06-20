@@ -1,84 +1,33 @@
-// widgets/common.dart
-// Consolidated: loading_indicator.dart + error_view.dart + other common widgets
-
 import 'package:flutter/material.dart';
 
-// ============================================================================
-// LOADING INDICATOR
-// ============================================================================
 class LoadingIndicator extends StatelessWidget {
-  final String? message;
-  
-  const LoadingIndicator({Key? key, this.message}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          if (message != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: Text(
-                message!,
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// ERROR VIEW
-// ============================================================================
-class ErrorView extends StatelessWidget {
   final String message;
-  final VoidCallback? onRetry;
-  
-  const ErrorView({
+  final double? progress;
+
+  const LoadingIndicator({
     Key? key,
-    required this.message,
-    this.onRetry,
+    this.message = 'Loading...',
+    this.progress,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 60,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
+            if (progress != null)
+              CircularProgressIndicator(value: progress)
+            else
+              const CircularProgressIndicator(),
+            const SizedBox(height: 24),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
-            if (onRetry != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 24.0),
-                child: ElevatedButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ),
           ],
         ),
       ),
@@ -86,96 +35,172 @@ class ErrorView extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// CUSTOM BUTTON
-// ============================================================================
-class CustomButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final IconData? icon;
-  final bool isLoading;
-  final bool isOutlined;
-  
-  const CustomButton({
+class ErrorView extends StatelessWidget {
+  final String title;
+  final String message;
+  final String? technicalDetails;
+  final VoidCallback? onRetry;
+  final String? retryButtonText;
+
+  const ErrorView({
     Key? key,
-    required this.text,
-    this.onPressed,
-    this.icon,
-    this.isLoading = false,
-    this.isOutlined = false,
+    this.title = 'Error',
+    required this.message,
+    this.technicalDetails,
+    this.onRetry,
+    this.retryButtonText = 'Retry',
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    Widget child = isLoading
-        ? const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon),
-                const SizedBox(width: 8),
-              ],
-              Text(text),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            if (technicalDetails != null) ...[
+              const SizedBox(height: 16),
+              ExpansionTile(
+                title: const Text('Technical Details'),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      technicalDetails!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
-          );
-
-    if (isOutlined) {
-      return OutlinedButton(
-        onPressed: isLoading ? null : onPressed,
-        child: child,
-      );
-    } else {
-      return ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        child: child,
-      );
-    }
+            if (onRetry != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: Text(retryButtonText!),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
-// ============================================================================
-// CONFIRMATION DIALOG
-// ============================================================================
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  const EmptyState({
+    Key? key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 64,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 24),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ConfirmationDialog extends StatelessWidget {
   final String title;
-  final String content;
+  final String message;
   final String confirmText;
   final String cancelText;
-  final VoidCallback? onConfirm;
-  final VoidCallback? onCancel;
-  final bool isDangerous;
-  
+  final VoidCallback onConfirm;
+  final bool isDestructive;
+
   const ConfirmationDialog({
     Key? key,
     required this.title,
-    required this.content,
+    required this.message,
     this.confirmText = 'Confirm',
     this.cancelText = 'Cancel',
-    this.onConfirm,
-    this.onCancel,
-    this.isDangerous = false,
+    required this.onConfirm,
+    this.isDestructive = false,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(title),
-      content: Text(content),
+      content: Text(message),
       actions: [
         TextButton(
-          onPressed: onCancel ?? () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(),
           child: Text(cancelText),
         ),
-        TextButton(
-          onPressed: onConfirm ?? () => Navigator.of(context).pop(true),
-          style: isDangerous
-              ? TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            onConfirm();
+          },
+          style: isDestructive
+              ? ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                 )
               : null,
           child: Text(confirmText),
@@ -183,117 +208,24 @@ class ConfirmationDialog extends StatelessWidget {
       ],
     );
   }
-  
+
   static Future<bool?> show(
     BuildContext context, {
     required String title,
-    required String content,
+    required String message,
     String confirmText = 'Confirm',
     String cancelText = 'Cancel',
-    bool isDangerous = false,
+    bool isDestructive = false,
   }) {
     return showDialog<bool>(
       context: context,
       builder: (context) => ConfirmationDialog(
         title: title,
-        content: content,
+        message: message,
         confirmText: confirmText,
         cancelText: cancelText,
-        isDangerous: isDangerous,
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// CUSTOM APP BAR
-// ============================================================================
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  final List<Widget>? actions;
-  final Widget? leading;
-  final bool centerTitle;
-  final PreferredSizeWidget? bottom;
-  
-  const CustomAppBar({
-    Key? key,
-    required this.title,
-    this.actions,
-    this.leading,
-    this.centerTitle = true,
-    this.bottom,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(
-      title: Text(title),
-      actions: actions,
-      leading: leading,
-      centerTitle: centerTitle,
-      bottom: bottom,
-    );
-  }
-  
-  @override
-  Size get preferredSize => Size.fromHeight(
-    kToolbarHeight + (bottom?.preferredSize.height ?? 0),
-  );
-}
-
-// ============================================================================
-// EMPTY STATE WIDGET
-// ============================================================================
-class EmptyStateWidget extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final String? actionText;
-  final VoidCallback? onAction;
-  
-  const EmptyStateWidget({
-    Key? key,
-    required this.title,
-    required this.description,
-    required this.icon,
-    this.actionText,
-    this.onAction,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 80,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              description,
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            if (actionText != null && onAction != null) ...[
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: onAction,
-                child: Text(actionText!),
-              ),
-            ],
-          ],
-        ),
+        isDestructive: isDestructive,
+        onConfirm: () => Navigator.of(context).pop(true),
       ),
     );
   }
