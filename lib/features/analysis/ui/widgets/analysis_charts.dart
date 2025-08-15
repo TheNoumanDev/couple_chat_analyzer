@@ -116,9 +116,166 @@ class HourlyActivityChart extends StatelessWidget {
                   borderData: FlBorderData(show: true),
                   lineBarsData: [
                     LineChartBarData(
+                      spots: _buildHourlySpots(),
+                      isCurved: true,
+                      color: Theme.of(context).colorScheme.primary,
+                      barWidth: 3,
+                      dotData: FlDotData(show: true),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<FlSpot> _buildHourlySpots() {
+    return data.map((item) {
+      final itemData = item as Map<String, dynamic>;
+      final hour = (itemData['hour'] as int).toDouble();
+      final messages = (itemData['messages'] as int).toDouble();
+      return FlSpot(hour, messages);
+    }).toList();
+  }
+}
+
+class WeeklyActivityChart extends StatelessWidget {
+  final List<dynamic> data;
+
+  const WeeklyActivityChart({
+    Key? key,
+    required this.data,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Weekly Activity',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: true),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                          final index = value.toInt() - 1;
+                          if (index >= 0 && index < days.length) {
+                            return Text(days[index]);
+                          }
+                          return const Text('');
+                        },
+                      ),
+                    ),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: true),
+                  barGroups: _buildWeeklyBars(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<BarChartGroupData> _buildWeeklyBars(BuildContext context) {
+    return data.map((item) {
+      final itemData = item as Map<String, dynamic>;
+      final day = itemData['day'] as int;
+      final messages = (itemData['messages'] as int).toDouble();
+      
+      return BarChartGroupData(
+        x: day,
+        barRods: [
+          BarChartRodData(
+            toY: messages,
+            color: Theme.of(context).colorScheme.secondary,
+            width: 20,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+      );
+    }).toList();
+  }
+}
+
+class MonthlyActivityChart extends StatelessWidget {
+  final List<dynamic> data;
+
+  const MonthlyActivityChart({
+    Key? key,
+    required this.data,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Monthly Activity',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: true),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < data.length) {
+                            final month = data[index]['month'] as String;
+                            return Text(month.substring(5)); // Show MM part of YYYY-MM
+                          }
+                          return const Text('');
+                        },
+                      ),
+                    ),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: true),
+                  lineBarsData: [
+                    LineChartBarData(
                       spots: _buildMonthlySpots(),
                       isCurved: true,
-                      color: Theme.of(context).colorScheme.secondary,
+                      color: Theme.of(context).colorScheme.tertiary,
                       barWidth: 3,
                       dotData: FlDotData(show: true),
                     ),
@@ -167,6 +324,8 @@ class TopEmojisChart extends StatelessWidget {
             const SizedBox(height: 16),
             ...data.take(10).map((emoji) {
               final emojiData = emoji as Map<String, dynamic>;
+              final maxCount = data.isNotEmpty ? (data.first as Map<String, dynamic>)['count'] as int : 1;
+              
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -185,8 +344,7 @@ class TopEmojisChart extends StatelessWidget {
                         ),
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
-                          widthFactor: (emojiData['count'] as int) / 
-                              (data.isNotEmpty ? (data.first as Map<String, dynamic>)['count'] as int : 1),
+                          widthFactor: (emojiData['count'] as int) / maxCount,
                           child: Container(
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.primary,

@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
-import '../../../shared/models.dart';
+import '../../shared/models.dart';
+import '../../shared/domain.dart';
 import 'utils/encoding_detector.dart';
 import 'utils/timestamp_parser.dart';
 import 'utils/message_validator.dart';

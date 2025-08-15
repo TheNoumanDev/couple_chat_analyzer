@@ -1,6 +1,6 @@
-import 'package:chatreport/shared/domain.dart';
 import 'package:flutter/foundation.dart';
 import '../../../shared/models.dart';
+import '../../../shared/domain.dart';
 
 class MessageValidator {
   static const int maxMessageLength = 65536; // 64KB max message size

@@ -1,16 +1,14 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:chatreport/features/import/providers/file_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'import_events.dart';
-import 'import_states.dart';
+import 'import_models.dart';
 import 'import_use_cases.dart';
-import 'providers/file_provider.dart';
+import 'providers/unified_file_provider.dart';
 
 class ImportBloc extends Bloc<ImportEvent, ImportState> {
   final ImportChatUseCase importChatUseCase;
-  final FileProvider fileProvider;
+  final UnifiedFileProvider fileProvider;
   StreamSubscription? _sharedFilesSubscription;
 
   ImportBloc({

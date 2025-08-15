@@ -1,6 +1,3 @@
-// core/exceptions.dart
-// Consolidated: app_exceptions.dart
-
 // Base Exception class
 abstract class AppException implements Exception {
   final String message;
@@ -60,11 +57,5 @@ class ReportException extends AppException {
 // Storage related exceptions
 class StorageException extends AppException {
   StorageException(String message, {String? code, dynamic data})
-      : super(message, code: code, data: data);
-}
-
-// Network related exceptions
-class NetworkException extends AppException {
-  NetworkException(String message, {String? code, dynamic data})
       : super(message, code: code, data: data);
 }

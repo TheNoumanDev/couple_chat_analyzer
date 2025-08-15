@@ -1,8 +1,4 @@
-// shared/domain.dart
-// Consolidated: All entities + repository interfaces
-
 import 'dart:io';
-export '../features/analysis/analysis_repository.dart';
 
 // ============================================================================
 // ENTITIES
@@ -89,7 +85,8 @@ abstract class ChatRepository {
 
 // Analysis Repository Interface
 abstract class AnalysisRepository {
-  Future<Map<String, dynamic>> getAnalysisResults(String chatId);
+  Future<Map<String, dynamic>?> getAnalysisResults(String chatId);
   Future<void> saveAnalysisResults(String chatId, Map<String, dynamic> results);
+  Future<void> deleteAnalysisResults(String chatId);
   Future<File> generateReport(String chatId, Map<String, dynamic> results);
 }

@@ -1,17 +1,24 @@
 // ============================================================================
 // FILE: features/analysis/analysis_use_cases.dart
+// Analysis use cases - Fixed with import prefix to resolve conflicts
 // ============================================================================
 import 'package:flutter/foundation.dart';
-import '../../shared/domain.dart';
+import '../../shared/domain.dart' as domain;
+import 'analysis_repository.dart' as analysis_repo;
+import 'analysis_models.dart';
 import 'analyzers/message_analyzer.dart';
 import 'analyzers/time_analyzer.dart';
 import 'analyzers/user_analyzer.dart';
 import 'analyzers/content_analyzer.dart';
-import 'enhanced_analyzers.dart';
+import 'analyzers/enhanced/conversation_dynamics_analyzer.dart';
+import 'analyzers/enhanced/behavior_pattern_analyzer.dart';
+import 'analyzers/enhanced/relationship_analyzer.dart';
+import 'analyzers/enhanced/content_intelligence_analyzer.dart';
+import 'analyzers/enhanced/temporal_insight_analyzer.dart';
 
 class AnalyzeChatUseCase {
-  final ChatRepository chatRepository;
-  final AnalysisRepository analysisRepository;
+  final domain.ChatRepository chatRepository;
+  final analysis_repo.AnalysisRepository analysisRepository;
   final MessageAnalyzer messageAnalyzer;
   final TimeAnalyzer timeAnalyzer;
   final UserAnalyzer userAnalyzer;
@@ -36,15 +43,23 @@ class AnalyzeChatUseCase {
     required this.temporalInsightAnalyzer,
   });
 
-  Future<Map<String, dynamic>> call(String chatId) async {
+  Future<ChatAnalysisResult> execute({
+    required String chatId,
+    AnalysisConfig? config,
+    bool forceRefresh = false,
+  }) async {
     try {
       debugPrint("AnalyzeChatUseCase: Starting enhanced analysis for chat: $chatId");
 
-      // Check if we already have analysis results
-      final existingResults = await analysisRepository.getAnalysisResults(chatId);
-      if (existingResults != null && existingResults.isNotEmpty) {
-        debugPrint("AnalyzeChatUseCase: Using existing analysis results");
-        return existingResults;
+      config ??= AnalysisConfig.defaultConfig();
+
+      // Check if we already have analysis results and not forcing refresh
+      if (!forceRefresh) {
+        final existingResults = await analysisRepository.getAnalysisResults(chatId);
+        if (existingResults != null) {
+          debugPrint("AnalyzeChatUseCase: Using existing analysis results");
+          return existingResults;
+        }
       }
 
       // Get chat data
@@ -56,45 +71,106 @@ class AnalyzeChatUseCase {
       debugPrint("AnalyzeChatUseCase: Chat found with ${chat.messages.length} messages");
 
       // Check if chat is too large for full analysis
-      if (chat.messages.length > 50000) {
+      if (chat.messages.length > config.maxMessagesToAnalyze) {
         debugPrint("AnalyzeChatUseCase: Large chat detected, using optimized analysis");
-        return await _performOptimizedAnalysis(chat, chatId);
+        return await _performOptimizedAnalysis(chat, chatId, config);
       }
 
-      // Run all analyzers
-      final messageResults = await messageAnalyzer.analyze(chat);
-      final timeResults = await timeAnalyzer.analyze(chat);
-      final userResults = await userAnalyzer.analyze(chat);
-      final contentResults = await contentAnalyzer.analyze(chat);
+      // Run all analyzers based on config
+      final analysisResults = <String, AnalysisResult>{};
+
+      // Core analyzers
+      if (config.includeUserAnalysis) {
+        final messageResults = await messageAnalyzer.analyze(chat);
+        analysisResults['messages'] = AnalysisResult(
+          type: 'messages',
+          data: messageResults,
+          confidence: 0.95,
+          generatedAt: DateTime.now(),
+        );
+      }
+
+      if (config.includeTimeAnalysis) {
+        final timeResults = await timeAnalyzer.analyze(chat);
+        analysisResults['time'] = AnalysisResult(
+          type: 'time',
+          data: timeResults,
+          confidence: 0.9,
+          generatedAt: DateTime.now(),
+        );
+      }
+
+      if (config.includeUserAnalysis) {
+        final userResults = await userAnalyzer.analyze(chat);
+        analysisResults['users'] = AnalysisResult(
+          type: 'users',
+          data: userResults,
+          confidence: 0.95,
+          generatedAt: DateTime.now(),
+        );
+      }
+
+      if (config.includeContentAnalysis) {
+        final contentResults = await contentAnalyzer.analyze(chat);
+        analysisResults['content'] = AnalysisResult(
+          type: 'content',
+          data: contentResults,
+          confidence: 0.9,
+          generatedAt: DateTime.now(),
+        );
+      }
 
       // Enhanced analyzers
-      final conversationResults = await conversationDynamicsAnalyzer.analyze(chat);
-      final behaviorResults = await behaviorPatternAnalyzer.analyze(chat);
-      final relationshipResults = await relationshipAnalyzer.analyze(chat);
-      final contentIntelligenceResults = await contentIntelligenceAnalyzer.analyze(chat);
-      final temporalResults = await temporalInsightAnalyzer.analyze(chat);
+      if (config.includeConversationDynamics) {
+        final conversationResults = await conversationDynamicsAnalyzer.analyze(chat);
+        analysisResults['conversationDynamics'] = conversationResults;
+      }
 
-      // Combine all results
-      final combinedResults = {
-        ...messageResults,
-        ...timeResults,
-        ...userResults,
-        ...contentResults,
-        ...conversationResults,
-        ...behaviorResults,
-        ...relationshipResults,
-        ...contentIntelligenceResults,
-        ...temporalResults,
-      };
+      if (config.includeBehaviorAnalysis) {
+        final behaviorResults = await behaviorPatternAnalyzer.analyze(chat);
+        analysisResults['behaviorPatterns'] = behaviorResults;
+      }
 
-      debugPrint("AnalyzeChatUseCase: Enhanced analysis complete with keys: ${combinedResults.keys}");
+      if (config.includeRelationshipAnalysis) {
+        final relationshipResults = await relationshipAnalyzer.analyze(chat);
+        analysisResults['relationshipDynamics'] = relationshipResults;
+      }
+
+      if (config.includeContentIntelligence) {
+        final contentIntelligenceResults = await contentIntelligenceAnalyzer.analyze(chat);
+        analysisResults['contentIntelligence'] = AnalysisResult(
+          type: 'contentIntelligence',
+          data: contentIntelligenceResults,
+          confidence: 0.85,
+          generatedAt: DateTime.now(),
+        );
+      }
+
+      if (config.includeTemporalInsights) {
+        final temporalResults = await temporalInsightAnalyzer.analyze(chat);
+        analysisResults['temporalInsights'] = AnalysisResult(
+          type: 'temporalInsights',
+          data: temporalResults,
+          confidence: 0.8,
+          generatedAt: DateTime.now(),
+        );
+      }
+
+      final chatAnalysisResult = ChatAnalysisResult(
+        chatId: chatId,
+        results: analysisResults,
+        generatedAt: DateTime.now(),
+      );
+
+      debugPrint("AnalyzeChatUseCase: Enhanced analysis complete with ${analysisResults.length} analysis types");
 
       // Save results
-      await analysisRepository.saveAnalysisResults(chatId, combinedResults);
+      await analysisRepository.saveAnalysisResults(chatId, chatAnalysisResult);
 
-      return combinedResults;
-    } catch (e) {
+      return chatAnalysisResult;
+    } catch (e, stackTrace) {
       debugPrint("AnalyzeChatUseCase: Error during enhanced analysis: $e");
+      debugPrint("Stack trace: $stackTrace");
       
       // Try to get chat for error results, but handle if it fails
       try {
@@ -111,13 +187,27 @@ class AnalyzeChatUseCase {
     }
   }
 
+  // Keep backward compatibility with the old call method
+  Future<Map<String, dynamic>> call(String chatId) async {
+    final result = await execute(chatId: chatId);
+    
+    // Convert ChatAnalysisResult back to Map for backward compatibility
+    final combinedResults = <String, dynamic>{};
+    
+    for (final entry in result.results.entries) {
+      combinedResults.addAll(entry.value.data);
+    }
+    
+    return combinedResults;
+  }
+
   // Optimized analysis for large chats
-  Future<Map<String, dynamic>> _performOptimizedAnalysis(
-      ChatEntity chat, String chatId) async {
+  Future<ChatAnalysisResult> _performOptimizedAnalysis(
+      domain.ChatEntity chat, String chatId, AnalysisConfig config) async {
     try {
       // Process in batches to avoid memory issues
       const batchSize = 5000;
-      final batches = <List<MessageEntity>>[];
+      final batches = <List<domain.MessageEntity>>[];
 
       for (int i = 0; i < chat.messages.length; i += batchSize) {
         final end = (i + batchSize < chat.messages.length)
@@ -129,54 +219,108 @@ class AnalyzeChatUseCase {
       debugPrint("AnalyzeChatUseCase: Processing ${batches.length} batches");
 
       // Run core analyzers only for large chats
+      final analysisResults = <String, AnalysisResult>{};
+
       final messageResults = await messageAnalyzer.analyze(chat);
+      analysisResults['messages'] = AnalysisResult(
+        type: 'messages',
+        data: messageResults,
+        confidence: 0.8,
+        generatedAt: DateTime.now(),
+      );
+
       final timeResults = await timeAnalyzer.analyze(chat);
+      analysisResults['time'] = AnalysisResult(
+        type: 'time',
+        data: timeResults,
+        confidence: 0.8,
+        generatedAt: DateTime.now(),
+      );
+
       final userResults = await userAnalyzer.analyze(chat);
+      analysisResults['users'] = AnalysisResult(
+        type: 'users',
+        data: userResults,
+        confidence: 0.8,
+        generatedAt: DateTime.now(),
+      );
 
-      final combinedResults = {
-        ...messageResults,
-        ...timeResults,
-        ...userResults,
-        'optimized': true,
-        'batchCount': batches.length,
-      };
+      // Add optimization metadata
+      analysisResults['optimization'] = AnalysisResult(
+        type: 'optimization',
+        data: {
+          'optimized': true,
+          'batchCount': batches.length,
+          'totalMessages': chat.messages.length,
+        },
+        confidence: 1.0,
+        generatedAt: DateTime.now(),
+      );
 
-      await analysisRepository.saveAnalysisResults(chatId, combinedResults);
-      return combinedResults;
+      final chatAnalysisResult = ChatAnalysisResult(
+        chatId: chatId,
+        results: analysisResults,
+        generatedAt: DateTime.now(),
+      );
+
+      await analysisRepository.saveAnalysisResults(chatId, chatAnalysisResult);
+      return chatAnalysisResult;
     } catch (e) {
       return _generateErrorResults(chat, e);
     }
   }
 
-  Map<String, dynamic> _generateErrorResults(ChatEntity chat, dynamic error) {
-    return {
-      'error': true,
-      'errorMessage': error.toString(),
-      'summary': {
-        'totalMessages': chat.messages.length,
-        'totalUsers': chat.users.length,
-        'dateRange': "${chat.firstMessageDate.toString().split(' ')[0]} - ${chat.lastMessageDate.toString().split(' ')[0]}",
-        'avgMessagesPerDay': 0,
-        'totalMedia': 0,
-        'durationDays': chat.lastMessageDate.difference(chat.firstMessageDate).inDays + 1,
-        'status': 'Analysis failed',
-      }
-    };
+  ChatAnalysisResult _generateErrorResults(domain.ChatEntity chat, dynamic error) {
+    final errorResult = AnalysisResult(
+      type: 'error',
+      data: {
+        'error': true,
+        'errorMessage': error.toString(),
+        'summary': {
+          'totalMessages': chat.messages.length,
+          'totalUsers': chat.users.length,
+          'dateRange': "${chat.firstMessageDate.toString().split(' ')[0]} - ${chat.lastMessageDate.toString().split(' ')[0]}",
+          'avgMessagesPerDay': 0,
+          'totalMedia': 0,
+          'durationDays': chat.lastMessageDate.difference(chat.firstMessageDate).inDays + 1,
+          'status': 'Analysis failed',
+        }
+      },
+      confidence: 0.0,
+      generatedAt: DateTime.now(),
+    );
+
+    return ChatAnalysisResult(
+      chatId: chat.id,
+      results: {'error': errorResult},
+      generatedAt: DateTime.now(),
+    );
   }
 
-  Map<String, dynamic> _generateMinimalErrorResults(String chatId, dynamic error) {
-    return {
-      'error': true,
-      'errorMessage': error.toString(),
-      'summary': {
-        'totalMessages': 0,
-        'totalUsers': 0,
-        'dateRange': 'Unknown',
-        'avgMessagesPerDay': 0,
-        'totalMedia': 0,
-        'durationDays': 0,
-        'status': 'Analysis failed - could not load chat',
-      }
-    };
+  ChatAnalysisResult _generateMinimalErrorResults(String chatId, dynamic error) {
+    final errorResult = AnalysisResult(
+      type: 'error',
+      data: {
+        'error': true,
+        'errorMessage': error.toString(),
+        'summary': {
+          'totalMessages': 0,
+          'totalUsers': 0,
+          'dateRange': 'Unknown',
+          'avgMessagesPerDay': 0,
+          'totalMedia': 0,
+          'durationDays': 0,
+          'status': 'Analysis failed - could not load chat',
+        }
+      },
+      confidence: 0.0,
+      generatedAt: DateTime.now(),
+    );
+
+    return ChatAnalysisResult(
+      chatId: chatId,
+      results: {'error': errorResult},
+      generatedAt: DateTime.now(),
+    );
   }
 }

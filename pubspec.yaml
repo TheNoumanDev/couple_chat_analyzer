@@ -54,7 +54,7 @@ dependencies:
   uuid: ^4.2.1
   
   # File Handling
-  file_picker: ^6.1.1
+  file_picker: ^10.3.1
   path: ^1.8.3
   receive_sharing_intent: ^1.4.5
   share_plus: ^7.2.1

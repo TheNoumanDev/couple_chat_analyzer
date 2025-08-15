@@ -1,5 +1,9 @@
+// lib/features/import/providers/unified_file_provider.dart
+// Unified provider combining file_provider.dart, file_picker_handler.dart, and shared_file_handler.dart
+
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -13,14 +17,19 @@ abstract class FileProvider {
   void dispose();
 }
 
-class FileProviderImpl implements FileProvider {
+class UnifiedFileProvider implements FileProvider {
+  // Stream for shared files
   final StreamController<File?> _sharedFilesController = StreamController<File?>.broadcast();
   StreamSubscription<List<SharedMediaFile>>? _mediaStreamSubscription;
   Timer? _retryTimer;
 
+  // Supported file types
+  static const List<String> supportedExtensions = ['txt', 'html', 'zip'];
+  static const int maxFileSizeBytes = 100 * 1024 * 1024; // 100MB
+
   @override
   void init() {
-    debugPrint("🔄 Initializing Enhanced FileProvider");
+    debugPrint("🔄 Initializing Unified FileProvider");
 
     try {
       // Clear any previous subscriptions
@@ -38,9 +47,119 @@ class FileProviderImpl implements FileProvider {
     }
   }
 
+  @override
+  Future<File?> pickFile({
+    List<String>? allowedExtensions,
+    String? dialogTitle,
+    bool allowMultiple = false,
+  }) async {
+    try {
+      debugPrint("📁 Opening file picker");
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: allowedExtensions ?? supportedExtensions,
+        allowMultiple: allowMultiple,
+        dialogTitle: dialogTitle ?? 'Select WhatsApp Chat Export',
+        lockParentWindow: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final path = result.files.first.path;
+        if (path != null) {
+          final file = File(path);
+          debugPrint("📄 File selected: ${file.path}");
+          
+          // Basic validation
+          if (await file.exists()) {
+            final fileSize = await file.length();
+            debugPrint("📏 File size: ${formatFileSize(fileSize)}");
+            return file;
+          } else {
+            debugPrint("❌ Selected file does not exist");
+            return null;
+          }
+        }
+      }
+
+      debugPrint("📄 No file selected");
+      return null;
+    } catch (e) {
+      debugPrint("❌ Error picking file: $e");
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<File?> getSharedFiles() => _sharedFilesController.stream;
+
+  @override
+  Future<bool> validateFile(File file) async {
+    try {
+      debugPrint("🔍 Validating file: ${file.path}");
+
+      // Check if file exists
+      if (!await file.exists()) {
+        debugPrint("❌ File does not exist");
+        return false;
+      }
+
+      // Check file size
+      final fileSize = await file.length();
+      debugPrint("📏 File size: ${formatFileSize(fileSize)}");
+
+      if (fileSize == 0) {
+        debugPrint("❌ File is empty");
+        return false;
+      }
+
+      if (fileSize > maxFileSizeBytes) {
+        debugPrint("❌ File too large: ${formatFileSize(fileSize)}");
+        return false;
+      }
+
+      // Get file path for checking
+      final fileName = file.path.toLowerCase();
+
+      // First, always check by magic bytes to determine actual file type
+      final isActuallyZip = await _isZipFile(file);
+
+      if (isActuallyZip) {
+        debugPrint("📦 File is actually a ZIP (detected by magic bytes)");
+        return await _validateZipFile(file);
+      }
+
+      // If not ZIP, check other formats
+      if (fileName.endsWith('.html')) {
+        debugPrint("🌐 Detected HTML file");
+        return await _validateHtmlFile(file);
+      }
+
+      if (fileName.endsWith('.txt')) {
+        debugPrint("📝 Detected text file");
+        return await _validateTextFile(file);
+      }
+
+      // If no recognized extension, try to validate as text
+      debugPrint("🔍 Unknown extension, trying as text file");
+      return await _validateTextFile(file);
+    } catch (e) {
+      debugPrint("❌ Error during file validation: $e");
+      return false;
+    }
+  }
+
+  @override
+  void dispose() {
+    debugPrint("🧹 Disposing FileProvider");
+    _mediaStreamSubscription?.cancel();
+    _retryTimer?.cancel();
+    _sharedFilesController.close();
+  }
+
+  // Private methods for shared file handling
   void _handleInitialSharedMedia() async {
     try {
-      // Add delay to ensure app is fully initialized
       await Future.delayed(const Duration(milliseconds: 500));
 
       final List<SharedMediaFile> files =
@@ -52,11 +171,9 @@ class FileProviderImpl implements FileProvider {
         await _processSharedFile(sharedFile);
       }
 
-      // Reset the initial media to prevent duplicate processing
       ReceiveSharingIntent.instance.reset();
     } catch (e) {
       debugPrint("❌ Error handling initial shared media: $e");
-      // Retry after a delay
       _scheduleRetry();
     }
   }
@@ -108,94 +225,7 @@ class FileProviderImpl implements FileProvider {
     });
   }
 
-  @override
-  Future<File?> pickFile() async {
-    try {
-      debugPrint("📁 Opening file picker");
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: AppConstants.supportedFileExtensions,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final path = result.files.first.path;
-        if (path != null) {
-          final file = File(path);
-          debugPrint("📄 File selected: ${file.path}");
-          return file;
-        }
-      }
-
-      debugPrint("📄 No file selected");
-      return null;
-    } catch (e) {
-      debugPrint("❌ Error picking file: $e");
-      rethrow;
-    }
-  }
-
-  @override
-  Stream<File?> getSharedFiles() => _sharedFilesController.stream;
-
-  @override
-  Future<bool> validateFile(File file) async {
-    try {
-      debugPrint("🔍 Validating file: ${file.path}");
-
-      // Check if file exists
-      if (!await file.exists()) {
-        debugPrint("❌ File does not exist");
-        return false;
-      }
-
-      // Check file size (should not be empty, but not too large)
-      final fileSize = await file.length();
-      debugPrint("📏 File size: ${fileSize} bytes");
-
-      if (fileSize == 0) {
-        debugPrint("❌ File is empty");
-        return false;
-      }
-
-      if (fileSize > 100 * 1024 * 1024) {
-        // 100MB limit
-        debugPrint("❌ File too large: ${fileSize} bytes");
-        return false;
-      }
-
-      // Get file path for checking
-      final fileName = file.path.toLowerCase();
-
-      // First, always check by magic bytes to determine actual file type
-      final isActuallyZip = await _isZipFile(file);
-
-      if (isActuallyZip) {
-        debugPrint("📦 File is actually a ZIP (detected by magic bytes)");
-        return await _validateZipFile(file);
-      }
-
-      // If not ZIP, check other formats
-      if (fileName.endsWith('.html')) {
-        debugPrint("🌐 Detected HTML file");
-        return await _validateHtmlFile(file);
-      }
-
-      if (fileName.endsWith('.txt')) {
-        debugPrint("📝 Detected text file");
-        return await _validateTextFile(file);
-      }
-
-      // If no recognized extension, try to validate as text
-      debugPrint("🔍 Unknown extension, trying as text file");
-      return await _validateTextFile(file);
-    } catch (e) {
-      debugPrint("❌ Error during file validation: $e");
-      return false;
-    }
-  }
-
+  // File validation helper methods
   Future<bool> _isZipFile(File file) async {
     try {
       final bytes = await file.openRead(0, 4).first;
@@ -208,7 +238,6 @@ class FileProviderImpl implements FileProvider {
 
   Future<bool> _validateZipFile(File file) async {
     // For now, assume ZIP files are valid if they pass the magic byte test
-    // In a more complete implementation, you'd extract and validate the contents
     debugPrint("✅ ZIP file validation passed");
     return true;
   }
@@ -241,8 +270,7 @@ class FileProviderImpl implements FileProvider {
               (content.contains(' - ') || content.contains(': '));
 
       if (!hasWhatsAppPatterns) {
-        debugPrint(
-            "⚠️ File doesn't appear to be a WhatsApp chat, but allowing it");
+        debugPrint("⚠️ File doesn't appear to be a WhatsApp chat, but allowing it");
       } else {
         debugPrint("✅ WhatsApp chat patterns detected");
       }
@@ -255,11 +283,20 @@ class FileProviderImpl implements FileProvider {
     }
   }
 
-  @override
-  void dispose() {
-    debugPrint("🧹 Disposing FileProvider");
-    _mediaStreamSubscription?.cancel();
-    _retryTimer?.cancel();
-    _sharedFilesController.close();
+  // Utility methods
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  String getFileExtension(String filePath) {
+    return filePath.split('.').last.toLowerCase();
+  }
+
+  bool isSupportedFile(String filePath) {
+    final extension = getFileExtension(filePath);
+    return supportedExtensions.contains(extension);
   }
 }

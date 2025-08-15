@@ -1,5 +1,5 @@
 import 'dart:io';
-import '../../../shared/models.dart';
+import '../../shared/models.dart';
 import 'whatsapp_text_parser.dart';
 import 'whatsapp_html_parser.dart';
 

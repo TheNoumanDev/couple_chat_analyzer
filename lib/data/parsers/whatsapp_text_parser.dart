@@ -1,16 +1,22 @@
+// ============================================================================
+// FILE: data/parsers/whatsapp_text_parser.dart
+// Complete implementation with abstract class
+// ============================================================================
 import 'dart:io';
-import 'package:chatreport/shared/domain.dart';
-import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
-import '../../../shared/models.dart';
+import 'package:uuid/uuid.dart';
+import '../../shared/models.dart';
+import '../../shared/domain.dart';
 import 'utils/encoding_detector.dart';
 import 'utils/timestamp_parser.dart';
 import 'utils/message_validator.dart';
 
+// Abstract class
 abstract class WhatsAppTextParser {
   Future<Chat> parse(File file);
 }
 
+// Implementation class
 class WhatsAppTextParserImpl implements WhatsAppTextParser {
   final _uuid = const Uuid();
   final EncodingDetector _encodingDetector = EncodingDetector();
@@ -19,45 +25,36 @@ class WhatsAppTextParserImpl implements WhatsAppTextParser {
 
   @override
   Future<Chat> parse(File file) async {
-    debugPrint("📝 Parsing WhatsApp text file: ${file.path}");
+    debugPrint("📄 Parsing WhatsApp text file: ${file.path}");
 
     try {
-      // Enhanced encoding detection
+      // Read the file with encoding detection
       final content = await _encodingDetector.readWithBestEncoding(file);
-      debugPrint("📄 Successfully read file with ${content.length} characters");
+      final lines = _encodingDetector.cleanLines(content.split('\n'));
 
-      // Clean and split lines
-      final rawLines = content.split('\n');
-      final lines = _encodingDetector.cleanLines(rawLines);
-      debugPrint("📊 Processing ${lines.length} clean lines (from ${rawLines.length} raw lines)");
-
-      // Extract chat title
-      String title = _extractTitleFromFilename(file.path);
+      debugPrint("📄 File contains ${lines.length} lines");
 
       final messages = <Message>[];
       final userMap = <String, User>{};
 
-      // Parse messages with enhanced pattern matching
-      await _parseMessagesWithPatterns(lines, messages, userMap);
+      // Parse messages
+      await _parseMessages(lines, messages, userMap);
 
-      // Validate and clean results
+      // Validate results
       final validationResult = _messageValidator.validateChat(messages, userMap.values.toList());
-      
-      debugPrint("👥 Users created during parsing:");
-      for (final user in validationResult.validUsers) {
-        debugPrint("  - Name: '${user.name}', ID: ${user.id}");
-      }
-
-      // Update userMap with only valid users
-      userMap.clear();
-      for (final user in validationResult.validUsers) {
-        userMap[user.id] = user;
-      }
 
       // Sort messages by timestamp
       validationResult.validMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-      debugPrint("✅ Parsing complete: ${validationResult.validMessageCount} messages, ${validationResult.validUserCount} users");
+      // Generate title
+      String title = 'WhatsApp Chat';
+      if (validationResult.validUsers.length == 2) {
+        title = 'Chat with ${validationResult.validUsers.where((u) => u.name != 'You').map((u) => u.name).join(', ')}';
+      } else if (validationResult.validUsers.length > 2) {
+        title = 'Group Chat (${validationResult.validUsers.length} members)';
+      }
+
+      debugPrint("✅ Text parsing complete: ${validationResult.validMessageCount} messages from ${validationResult.validUserCount} users");
 
       return Chat(
         id: _uuid.v4(),
@@ -79,107 +76,76 @@ class WhatsAppTextParserImpl implements WhatsAppTextParser {
     }
   }
 
-  String _extractTitleFromFilename(String filePath) {
-    String title = filePath.split('/').last;
+  Future<void> _parseMessages(List<String> lines, List<Message> messages, Map<String, User> userMap) async {
+    String? currentSender;
+    DateTime? currentTimestamp;
+    String currentContent = '';
 
-    // Remove file extension
-    if (title.toLowerCase().endsWith('.txt')) {
-      title = title.substring(0, title.length - 4);
+    for (final line in lines) {
+      final parsedMessage = _timestampParser.tryParseMessage(line);
+      
+      if (parsedMessage != null) {
+        // Save previous message
+        if (currentSender != null && currentTimestamp != null && currentContent.isNotEmpty) {
+          await _addMessage(messages, userMap, currentSender, currentTimestamp, currentContent);
+        }
+        
+        // Start new message
+        currentSender = parsedMessage.senderName;
+        currentTimestamp = parsedMessage.timestamp;
+        currentContent = parsedMessage.content;
+      } else if (currentSender != null) {
+        // Continue previous message
+        if (currentContent.isNotEmpty) {
+          currentContent += '\n';
+        }
+        currentContent += line.trim();
+      }
     }
 
-    // Clean up common prefixes
-    if (title.startsWith('WhatsApp Chat with ')) {
-      title = title.substring('WhatsApp Chat with '.length);
-    } else if (title.startsWith('WhatsApp Chat - ')) {
-      title = title.substring('WhatsApp Chat - '.length);
+    // Add last message
+    if (currentSender != null && currentTimestamp != null && currentContent.isNotEmpty) {
+      await _addMessage(messages, userMap, currentSender, currentTimestamp, currentContent);
     }
 
-    return title.isNotEmpty ? title : 'WhatsApp Chat';
+    debugPrint("📊 Parsed ${messages.length} messages from ${userMap.length} users");
   }
 
-  Future<void> _parseMessagesWithPatterns(
-    List<String> lines,
+  Future<void> _addMessage(
     List<Message> messages,
     Map<String, User> userMap,
+    String senderName,
+    DateTime timestamp,
+    String content,
   ) async {
-    debugPrint("🔍 Starting message parsing with ${lines.length} lines");
-    
-    Message? currentMessage;
-    String currentContent = '';
-    int processedLines = 0;
-    int matchedMessages = 0;
+    try {
+      // Get or create user
+      final userId = _getOrCreateUser(senderName, userMap);
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      processedLines++;
+      // Clean content
+      final cleanContent = _messageValidator.cleanMessageContent(content);
+      
+      // Determine message type
+      final messageType = _messageValidator.detectMessageType(cleanContent);
 
-      if (line.isEmpty) continue;
-
-      // Try to parse as a new message
-      final parsedMessage = _timestampParser.tryParseMessage(line);
-
-      if (parsedMessage != null) {
-        // Save previous message if exists
-        if (currentMessage != null && currentContent.isNotEmpty) {
-          await _addMessage(
-            messages,
-            userMap,
-            currentMessage.senderId,
-            currentMessage.timestamp,
-            currentContent.trim(),
-          );
-          matchedMessages++;
-        }
-
-        // Start new message
-        final userId = _getOrCreateUser(parsedMessage.senderName, userMap);
-        currentMessage = Message(
-          id: _uuid.v4(),
-          senderId: userId,
-          content: '',
-          timestamp: parsedMessage.timestamp,
-          type: MessageType.text,
-        );
-
-        currentContent = parsedMessage.content;
-      } else {
-        // Continuation of previous message
-        if (currentMessage != null) {
-          if (currentContent.isNotEmpty) {
-            currentContent += '\n';
-          }
-          currentContent += line;
-        } else {
-          // Line without timestamp - might be start of file info, skip
-          debugPrint("⚠️ Skipping line without timestamp: ${line.substring(0, 50)}...");
-        }
-      }
-
-      // Progress tracking for large files
-      if (processedLines % 5000 == 0) {
-        debugPrint("📊 Processed $processedLines lines, matched $matchedMessages messages");
-        // Allow other operations to run
-        await Future.delayed(const Duration(milliseconds: 1));
-      }
-    }
-
-    // Don't forget the last message
-    if (currentMessage != null && currentContent.isNotEmpty) {
-      await _addMessage(
-        messages,
-        userMap,
-        currentMessage.senderId,
-        currentMessage.timestamp,
-        currentContent.trim(),
+      // Create message
+      final message = Message(
+        id: _uuid.v4(),
+        senderId: userId,
+        content: cleanContent,
+        timestamp: timestamp,
+        type: messageType,
       );
-      matchedMessages++;
-    }
 
-    debugPrint("📈 Final parsing stats: $processedLines lines processed, $matchedMessages messages created");
+      if (_messageValidator.isValidMessage(message)) {
+        messages.add(message);
+      }
+    } catch (e) {
+      debugPrint("❌ Error adding message: $e");
+    }
   }
 
   String _getOrCreateUser(String userName, Map<String, User> userMap) {
-    // Clean the username
     final cleanUserName = userName.trim();
     
     if (cleanUserName.isEmpty) {
@@ -202,54 +168,5 @@ class WhatsAppTextParserImpl implements WhatsAppTextParser {
 
     debugPrint("👤 Created user: '$cleanUserName' with ID: $userId");
     return userId;
-  }
-
-  Future<void> _addMessage(
-    List<Message> messages,
-    Map<String, User> userMap,
-    String senderId,
-    DateTime timestamp,
-    String content,
-  ) async {
-    try {
-      // Clean the content
-      final cleanContent = _messageValidator.cleanMessageContent(content);
-      
-      if (cleanContent.isEmpty && !_isMediaMessage(content)) {
-        debugPrint("⚠️ Skipping empty message");
-        return;
-      }
-
-      // Determine message type
-      final messageType = _messageValidator.detectMessageType(cleanContent);
-
-      // Create message
-      final message = Message(
-        id: _uuid.v4(),
-        senderId: senderId,
-        content: cleanContent,
-        timestamp: timestamp,
-        type: messageType,
-      );
-
-      // Validate message before adding
-      if (_messageValidator.isValidMessage(message)) {
-        messages.add(message);
-      } else {
-        debugPrint("⚠️ Invalid message filtered out: ${cleanContent.substring(0, 30)}...");
-      }
-    } catch (e) {
-      debugPrint("❌ Error adding message: $e");
-    }
-  }
-
-  bool _isMediaMessage(String content) {
-    final lowerContent = content.toLowerCase();
-    return lowerContent.contains('omitted') ||
-           lowerContent.contains('<media>') ||
-           lowerContent.contains('<audio>') ||
-           lowerContent.contains('<video>') ||
-           lowerContent.contains('<image>') ||
-           lowerContent.contains('<document>');
   }
 }

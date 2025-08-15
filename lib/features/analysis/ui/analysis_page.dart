@@ -1,21 +1,19 @@
+// ============================================================================
+// FILE: features/analysis/ui/analysis_page.dart
+// Fixed analysis page with correct data extraction
+// ============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import '../../../widgets/common.dart';
+import '../../reports/reports_bloc.dart';
 import '../../reports/reports_ui.dart';
-import '../../reports/reports_feature.dart';
 import '../analysis_bloc.dart';
-import '../analysis_events.dart';
-import '../analysis_states.dart';
+import '../analysis_models.dart' as models;
 import 'tabs/overview_tab.dart';
 import 'tabs/users_tab.dart';
-import 'tabs/time_tab.dart';
 import 'tabs/content_tab.dart';
-import 'tabs/conversations_tab.dart';
-import 'tabs/behavior_tab.dart';
-import 'tabs/relationship_tab.dart';
-import 'tabs/intelligence_tab.dart';
-import 'tabs/evolution_tab.dart';
+import 'tabs/insights_tab.dart';
 
 class AnalysisPage extends StatefulWidget {
   final String chatId;
@@ -32,9 +30,8 @@ class AnalysisPage extends StatefulWidget {
 class _AnalysisPageState extends State<AnalysisPage>
     with SingleTickerProviderStateMixin {
   late AnalysisBloc _analysisBloc;
-  late ReportBloc _reportBloc;
+  late ReportsBloc _reportBloc;
   late TabController _tabController;
-  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -43,11 +40,17 @@ class _AnalysisPageState extends State<AnalysisPage>
 
     try {
       _analysisBloc = AnalysisBloc(analyzeChatUseCase: GetIt.instance.get());
-      _reportBloc = ReportBloc(generateReportUseCase: GetIt.instance.get());
-      _tabController = TabController(length: 9, vsync: this);
+      
+      _reportBloc = ReportsBloc(
+        generateReportUseCase: GetIt.instance.get(),
+        shareReportUseCase: GetIt.instance.get(),
+        deleteReportUseCase: GetIt.instance.get(),
+        getReportHistoryUseCase: GetIt.instance.get(),
+      );
+      
+      _tabController = TabController(length: 4, vsync: this);
 
-      // Start analysis immediately
-      _analysisBloc.add(AnalyzeChatEvent(widget.chatId));
+      _analysisBloc.add(StartAnalysisEvent(widget.chatId));
       debugPrint("✅ AnalysisPage initialized successfully");
     } catch (e, stackTrace) {
       debugPrint("❌ Error in AnalysisPage initState: $e");
@@ -58,7 +61,6 @@ class _AnalysisPageState extends State<AnalysisPage>
   @override
   void dispose() {
     debugPrint("AnalysisPage: dispose called");
-    _isDisposed = true;
     _analysisBloc.close();
     _reportBloc.close();
     _tabController.dispose();
@@ -77,18 +79,12 @@ class _AnalysisPageState extends State<AnalysisPage>
           title: Text('Analysis: ${widget.chatId.substring(0, 8)}...'),
           bottom: TabBar(
             controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            isScrollable: false,
             tabs: const [
-              Tab(icon: Icon(Icons.summarize), text: 'Summary'),
+              Tab(icon: Icon(Icons.summarize), text: 'Overview'),
               Tab(icon: Icon(Icons.people), text: 'Users'),
-              Tab(icon: Icon(Icons.access_time), text: 'Time'),
               Tab(icon: Icon(Icons.analytics), text: 'Content'),
-              Tab(icon: Icon(Icons.chat_bubble_outline), text: 'Conversations'),
-              Tab(icon: Icon(Icons.psychology), text: 'Behavior'),
-              Tab(icon: Icon(Icons.favorite), text: 'Relationship'),
-              Tab(icon: Icon(Icons.school), text: 'Intelligence'),
-              Tab(icon: Icon(Icons.timeline), text: 'Evolution'),
+              Tab(icon: Icon(Icons.psychology), text: 'Insights'),
             ],
           ),
           actions: [
@@ -99,7 +95,7 @@ class _AnalysisPageState extends State<AnalysisPage>
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Refresh Analysis',
                     onPressed: () {
-                      _analysisBloc.add(AnalyzeChatEvent(widget.chatId));
+                      _analysisBloc.add(RefreshAnalysisEvent(widget.chatId));
                     },
                   );
                 }
@@ -111,8 +107,8 @@ class _AnalysisPageState extends State<AnalysisPage>
         body: BlocBuilder<AnalysisBloc, AnalysisState>(
           builder: (context, state) {
             if (state is AnalysisLoading) {
-              return const LoadingIndicator(
-                message: 'Analyzing your chat data...\nThis may take a moment for large chats',
+              return LoadingIndicator(
+                message: state.message,
               );
             }
 
@@ -121,24 +117,22 @@ class _AnalysisPageState extends State<AnalysisPage>
             }
 
             if (state is AnalysisSuccess) {
-              if (!state.results.containsKey('summary')) {
+              // Fixed: Convert ChatAnalysisResult to Map with proper structure
+              final results = _convertAnalysisResultToMap(state.result);
+              
+              if (!results.containsKey('summary')) {
                 return _buildErrorView(
                     context,
-                    const AnalysisError("Analysis results incomplete. Missing summary data."));
+                    const AnalysisError(message: "Analysis results incomplete. Missing summary data."));
               }
 
               return TabBarView(
                 controller: _tabController,
                 children: [
-                  OverviewTab(results: state.results),
-                  UsersTab(results: state.results),
-                  TimeTab(results: state.results),
-                  ContentTab(results: state.results),
-                  ConversationsTab(results: state.results),
-                  BehaviorTab(results: state.results),
-                  RelationshipTab(results: state.results),
-                  IntelligenceTab(results: state.results),
-                  EvolutionTab(results: state.results),
+                  OverviewTab(results: results),
+                  UsersTab(results: results),
+                  ContentTab(results: results),
+                  InsightsTab(results: results),
                 ],
               );
             }
@@ -151,8 +145,9 @@ class _AnalysisPageState extends State<AnalysisPage>
         floatingActionButton: BlocBuilder<AnalysisBloc, AnalysisState>(
           builder: (context, state) {
             if (state is AnalysisSuccess) {
+              final results = _convertAnalysisResultToMap(state.result);
               return FloatingActionButton.extended(
-                onPressed: () => _generateReport(context, state.results),
+                onPressed: () => _generateReport(context, results),
                 icon: const Icon(Icons.file_download),
                 label: const Text('Generate Report'),
               );
@@ -168,14 +163,18 @@ class _AnalysisPageState extends State<AnalysisPage>
     return ErrorView(
       title: 'Analysis Failed',
       message: state.message,
+      technicalDetails: state.technicalDetails,
       onRetry: () {
-        _analysisBloc.add(AnalyzeChatEvent(widget.chatId));
+        _analysisBloc.add(StartAnalysisEvent(widget.chatId));
       },
     );
   }
 
   void _generateReport(BuildContext context, Map<String, dynamic> results) {
-    _reportBloc.add(GenerateReportEvent(widget.chatId, results));
+    _reportBloc.add(GenerateReportEvent(
+      chatId: widget.chatId, 
+      analysisResults: results,
+    ));
     
     showDialog(
       context: context,
@@ -184,5 +183,55 @@ class _AnalysisPageState extends State<AnalysisPage>
         child: const ReportGenerationDialog(),
       ),
     );
+  }
+
+  /// Convert ChatAnalysisResult to Map for backward compatibility with UI
+  /// FIXED: Preserve analyzer keys while extracting data properly
+  Map<String, dynamic> _convertAnalysisResultToMap(models.ChatAnalysisResult result) {
+    final combinedResults = <String, dynamic>{};
+    
+    debugPrint("🔍 Converting analysis result with ${result.results.length} entries:");
+    
+    // Process each analyzer result
+    for (final entry in result.results.entries) {
+      final analyzerKey = entry.key;       // e.g., 'conversationDynamics'
+      final analysisResult = entry.value;  // AnalysisResult object
+      
+      debugPrint("  - Processing $analyzerKey: type=${analysisResult.type}");
+      debugPrint("    Data keys: ${analysisResult.data.keys.join(', ')}");
+      
+      // Simply store the data under the analyzer key - this is what the UI expects
+      combinedResults[analyzerKey] = analysisResult.data;
+      
+      // ALSO: For backward compatibility, merge the data contents at root level
+      // This ensures widgets that expect data at root level still work
+      for (final dataEntry in analysisResult.data.entries) {
+        if (!combinedResults.containsKey(dataEntry.key)) {
+          combinedResults[dataEntry.key] = dataEntry.value;
+        }
+      }
+    }
+    
+    debugPrint("🔍 Final combined results structure:");
+    debugPrint("  All keys: ${combinedResults.keys.toList()}");
+    
+    // Verify the analyzer keys are present
+    final expectedKeys = ['conversationDynamics', 'behaviorPatterns', 'relationshipDynamics', 'contentIntelligence', 'temporalInsights'];
+    final presentKeys = expectedKeys.where((key) => combinedResults.containsKey(key)).toList();
+    debugPrint("✅ Present analyzer keys: $presentKeys");
+    
+    // Debug: Print the actual structure of each analyzer's data
+    for (final key in expectedKeys) {
+      if (combinedResults.containsKey(key)) {
+        final data = combinedResults[key];
+        if (data is Map) {
+          debugPrint("📊 $key data structure: ${(data as Map).keys.join(', ')}");
+        } else {
+          debugPrint("📊 $key data type: ${data.runtimeType}");
+        }
+      }
+    }
+    
+    return combinedResults;
   }
 }

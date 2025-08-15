@@ -3,7 +3,6 @@ import '../../../shared/domain.dart';
 import 'base_analyzer.dart';
 
 class MessageAnalyzer implements BaseAnalyzer {
-  // Fixed MessageAnalyzer.analyze method - uses names instead of IDs
   @override
   Future<Map<String, dynamic>> analyze(ChatEntity chat) async {
     debugPrint("MessageAnalyzer: Analyzing ${chat.messages.length} messages");

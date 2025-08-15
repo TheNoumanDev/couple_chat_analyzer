@@ -1,6 +1,3 @@
-// shared/models.dart
-// Consolidated: All data models + analysis_result.dart
-
 import 'domain.dart';
 
 // ============================================================================

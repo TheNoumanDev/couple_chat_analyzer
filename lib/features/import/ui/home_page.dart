@@ -4,8 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../../../widgets/common.dart';
 import '../../analysis/ui/analysis_page.dart';
 import '../import_bloc.dart';
-import '../import_events.dart';
-import '../import_states.dart';
+import '../import_models.dart';
 import 'import_page.dart';
 
 class HomePage extends StatefulWidget {

@@ -4,8 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../widgets/common.dart';
 import '../../analysis/ui/analysis_page.dart';
 import '../import_bloc.dart';
-import '../import_events.dart';
-import '../import_states.dart';
+import '../import_models.dart';
 
 class ImportPage extends StatelessWidget {
   const ImportPage({Key? key}) : super(key: key);

@@ -1,6 +1,3 @@
-// data/repositories.dart
-// Consolidated: chat_repository_impl.dart + analysis_repository_impl.dart
-
 import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -10,15 +7,15 @@ import '../shared/domain.dart';
 import '../shared/models.dart';
 import '../core/utils.dart';
 import 'local.dart';
-import 'parsers.dart';
-import '../features/import/import_feature.dart';
+import 'parsers/chat_parser.dart';
+import '../features/import/providers/unified_file_provider.dart';
 
 // ============================================================================
 // CHAT REPOSITORY IMPLEMENTATION
 // ============================================================================
 class ChatRepositoryImpl implements ChatRepository {
   final ChatLocalDataSource localDataSource;
-  final FileProvider fileProvider;
+  final UnifiedFileProvider fileProvider;
   final ChatParser chatParser;
 
   ChatRepositoryImpl({
@@ -101,22 +98,19 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
   });
 
   @override
-  Future<Map<String, dynamic>> getAnalysisResults(String chatId) async {
-    final result = await localDataSource.getAnalysisResult(chatId);
-    if (result != null) {
-      return result.results;
-    }
-    return {};
+  Future<Map<String, dynamic>?> getAnalysisResults(String chatId) async {
+    return await localDataSource.getAnalysisResults(chatId);
   }
 
   @override
   Future<void> saveAnalysisResults(String chatId, Map<String, dynamic> results) async {
-    final analysisResult = AnalysisResult(
-      chatId: chatId,
-      analysisDate: DateTime.now(),
-      results: results,
-    );
-    await localDataSource.saveAnalysisResult(analysisResult);
+    await localDataSource.saveAnalysisResults(chatId, results);
+  }
+
+  @override
+  Future<void> deleteAnalysisResults(String chatId) async {
+    // Implementation handled by local data source
+    await localDataSource.deleteChat(chatId);
   }
 
   @override
@@ -249,7 +243,7 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
         pw.TableRow(
           children: [
             _tableCell('Total Participants'),
-            _tableCell(summary['totalParticipants']?.toString() ?? '0'),
+            _tableCell(summary['totalUsers']?.toString() ?? '0'),
           ],
         ),
         pw.TableRow(
@@ -269,7 +263,7 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
   }
   
   pw.Widget _buildParticipantsTable(Map<String, dynamic> results) {
-    final participants = (results['participants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final participants = (results['messagesByUser'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     
     return pw.Table(
       border: pw.TableBorder.all(),
@@ -300,61 +294,10 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Messages by Day of Week', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Peak Activity', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 10),
-        _buildDayOfWeekTable(timeAnalysis['dayOfWeek'] ?? {}),
-        pw.SizedBox(height: 20),
-        pw.Text('Messages by Hour', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 10),
-        _buildHourTable(timeAnalysis['hourOfDay'] ?? {}),
-      ],
-    );
-  }
-  
-  pw.Widget _buildDayOfWeekTable(Map<String, dynamic> dayData) {
-    final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        pw.TableRow(
-          children: [
-            _tableCellHeader('Day'),
-            _tableCellHeader('Count'),
-          ],
-        ),
-        ...days.map((day) {
-          return pw.TableRow(
-            children: [
-              _tableCell(day),
-              _tableCell(dayData[day]?.toString() ?? '0'),
-            ],
-          );
-        }).toList(),
-      ],
-    );
-  }
-  
-  pw.Widget _buildHourTable(Map<String, dynamic> hourData) {
-    final hours = List.generate(24, (i) => i.toString().padLeft(2, '0'));
-    
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        pw.TableRow(
-          children: [
-            _tableCellHeader('Hour'),
-            _tableCellHeader('Count'),
-          ],
-        ),
-        ...hours.map((hour) {
-          return pw.TableRow(
-            children: [
-              _tableCell('$hour:00'),
-              _tableCell(hourData[hour]?.toString() ?? '0'),
-            ],
-          );
-        }).toList(),
+        pw.Text('Peak Hour: ${timeAnalysis['peakHour']?['timeRange'] ?? 'Unknown'}'),
+        pw.Text('Peak Day: ${timeAnalysis['peakDay']?['dayName'] ?? 'Unknown'}'),
       ],
     );
   }
@@ -365,57 +308,11 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Top Words', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Content Overview', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 10),
-        _buildTopWordsTable(contentAnalysis['topWords'] ?? []),
-        pw.SizedBox(height: 20),
-        pw.Text('Emoji Usage', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 10),
-        _buildEmojiTable(contentAnalysis['topEmojis'] ?? []),
-      ],
-    );
-  }
-  
-  pw.Widget _buildTopWordsTable(List<dynamic> topWords) {
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        pw.TableRow(
-          children: [
-            _tableCellHeader('Word'),
-            _tableCellHeader('Count'),
-          ],
-        ),
-        ...topWords.take(20).map((word) {
-          return pw.TableRow(
-            children: [
-              _tableCell(word['word'] ?? ''),
-              _tableCell(word['count']?.toString() ?? '0'),
-            ],
-          );
-        }).toList(),
-      ],
-    );
-  }
-  
-  pw.Widget _buildEmojiTable(List<dynamic> topEmojis) {
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        pw.TableRow(
-          children: [
-            _tableCellHeader('Emoji'),
-            _tableCellHeader('Count'),
-          ],
-        ),
-        ...topEmojis.take(20).map((emoji) {
-          return pw.TableRow(
-            children: [
-              _tableCell(emoji['emoji'] ?? ''),
-              _tableCell(emoji['count']?.toString() ?? '0'),
-            ],
-          );
-        }).toList(),
+        pw.Text('Total Words: ${contentAnalysis['totalWords'] ?? 0}'),
+        pw.Text('Total Emojis: ${contentAnalysis['totalEmojis'] ?? 0}'),
+        pw.Text('Total Media: ${contentAnalysis['totalMedia'] ?? 0}'),
       ],
     );
   }
