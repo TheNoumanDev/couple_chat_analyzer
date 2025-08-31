@@ -26,12 +26,14 @@ class ContentAnalyzer implements BaseAnalyzer {
             !msg.content.toLowerCase().contains('left'))
         .toList();
 
-    // Initialize counters
-    int totalWords = 0;
-    int totalCharacters = 0;
-    int totalEmojis = 0;
-    int totalUrls = 0;
-    int totalMedia = 0;
+    // Initialize counters - use a mutable object to track totals
+    final totals = {
+      'words': 0,
+      'characters': 0,
+      'emojis': 0,
+      'urls': 0,
+      'media': 0,
+    };
 
     final Map<String, int> emojiCounts = {};
     final Map<String, int> domainCounts = {};
@@ -47,14 +49,13 @@ class ContentAnalyzer implements BaseAnalyzer {
 
     // Process each message
     for (final message in realMessages) {
-      _processMessage(message, totalWords, totalCharacters, totalEmojis, 
-                     totalUrls, totalMedia, emojiCounts, domainCounts, 
+      _processMessage(message, totals, emojiCounts, domainCounts, 
                      domainCountsByUser, messageLengthDistribution);
     }
 
     // Calculate averages
-    final avgWordsPerMessage = realMessages.isNotEmpty ? totalWords / realMessages.length : 0;
-    final avgCharsPerMessage = realMessages.isNotEmpty ? totalCharacters / realMessages.length : 0;
+    final avgWordsPerMessage = realMessages.isNotEmpty ? totals['words']! / realMessages.length : 0;
+    final avgCharsPerMessage = realMessages.isNotEmpty ? totals['characters']! / realMessages.length : 0;
 
     // Get top emojis
     final topEmojis = emojiCounts.entries.toList()
@@ -64,15 +65,15 @@ class ContentAnalyzer implements BaseAnalyzer {
     final topDomains = domainCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    debugPrint("ContentAnalyzer: Total words: $totalWords, Total emojis: $totalEmojis");
+    debugPrint("ContentAnalyzer: Total words: ${totals['words']}, Total emojis: ${totals['emojis']}");
 
     return {
       'contentAnalysis': {
-        'totalWords': totalWords,
-        'totalCharacters': totalCharacters,
-        'totalEmojis': totalEmojis,
-        'totalUrls': totalUrls,
-        'totalMedia': totalMedia,
+        'totalWords': totals['words']!,
+        'totalCharacters': totals['characters']!,
+        'totalEmojis': totals['emojis']!,
+        'totalUrls': totals['urls']!,
+        'totalMedia': totals['media']!,
         'avgWordsPerMessage': avgWordsPerMessage.toStringAsFixed(1),
         'avgCharsPerMessage': avgCharsPerMessage.toStringAsFixed(1),
         'topEmojis': topEmojis.take(10).map((e) => {
@@ -90,11 +91,7 @@ class ContentAnalyzer implements BaseAnalyzer {
 
   void _processMessage(
     MessageEntity message,
-    int totalWords,
-    int totalCharacters,
-    int totalEmojis,
-    int totalUrls,
-    int totalMedia,
+    Map<String, int> totals,
     Map<String, int> emojiCounts,
     Map<String, int> domainCounts,
     Map<String, Map<String, int>> domainCountsByUser,
@@ -106,8 +103,8 @@ class ContentAnalyzer implements BaseAnalyzer {
     if (message.type == MessageType.text) {
       // Count words (all words, no filtering)
       final words = content.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
-      totalWords += words;
-      totalCharacters += content.length;
+      totals['words'] = totals['words']! + words;
+      totals['characters'] = totals['characters']! + content.length;
 
       // Message length distribution
       String lengthCategory;
@@ -122,18 +119,19 @@ class ContentAnalyzer implements BaseAnalyzer {
 
       // Count emojis
       final emojiMatches = emojiRegExp.allMatches(content);
-      totalEmojis += emojiMatches.length;
+      totals['emojis'] = totals['emojis']! + emojiMatches.length;
 
       for (final match in emojiMatches) {
         final emoji = match.group(0)!;
         emojiCounts[emoji] = (emojiCounts[emoji] ?? 0) + 1;
       }
     } else {
-      totalMedia++;
+      totals['media'] = totals['media']! + 1;
     }
 
     // Process URLs and extract domains
     final urls = urlRegExp.allMatches(content).map((m) => m.group(0)!).toList();
+    totals['urls'] = totals['urls']! + urls.length;
 
     for (final url in urls) {
       try {
@@ -142,13 +140,14 @@ class ContentAnalyzer implements BaseAnalyzer {
 
         if (domain.isNotEmpty) {
           domainCounts[domain] = (domainCounts[domain] ?? 0) + 1;
+          
           if (domainCountsByUser.containsKey(senderId)) {
-            domainCountsByUser[senderId]![domain] =
+            domainCountsByUser[senderId]![domain] = 
                 (domainCountsByUser[senderId]![domain] ?? 0) + 1;
           }
         }
       } catch (e) {
-        debugPrint("ContentAnalyzer: Failed to parse URL: $url");
+        debugPrint("Error parsing URL: $url - $e");
       }
     }
   }

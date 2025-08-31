@@ -14,6 +14,7 @@ import 'tabs/overview_tab.dart';
 import 'tabs/users_tab.dart';
 import 'tabs/content_tab.dart';
 import 'tabs/insights_tab.dart';
+import 'tabs/debug_tab.dart'; // Added debug tab import
 
 class AnalysisPage extends StatefulWidget {
   final String chatId;
@@ -48,7 +49,7 @@ class _AnalysisPageState extends State<AnalysisPage>
         getReportHistoryUseCase: GetIt.instance.get(),
       );
       
-      _tabController = TabController(length: 4, vsync: this);
+      _tabController = TabController(length: 5, vsync: this); // Changed from 4 to 5
 
       _analysisBloc.add(StartAnalysisEvent(widget.chatId));
       debugPrint("✅ AnalysisPage initialized successfully");
@@ -79,12 +80,13 @@ class _AnalysisPageState extends State<AnalysisPage>
           title: Text('Analysis: ${widget.chatId.substring(0, 8)}...'),
           bottom: TabBar(
             controller: _tabController,
-            isScrollable: false,
+            isScrollable: true, // Changed to scrollable for 5 tabs
             tabs: const [
               Tab(icon: Icon(Icons.summarize), text: 'Overview'),
               Tab(icon: Icon(Icons.people), text: 'Users'),
               Tab(icon: Icon(Icons.analytics), text: 'Content'),
               Tab(icon: Icon(Icons.psychology), text: 'Insights'),
+              Tab(icon: Icon(Icons.bug_report), text: 'Debug'), // Added debug tab
             ],
           ),
           actions: [
@@ -133,6 +135,7 @@ class _AnalysisPageState extends State<AnalysisPage>
                   UsersTab(results: results),
                   ContentTab(results: results),
                   InsightsTab(results: results),
+                  DebugTab(results: results), // Added debug tab
                 ],
               );
             }
