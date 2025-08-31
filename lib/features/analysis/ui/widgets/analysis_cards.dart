@@ -36,13 +36,28 @@ class SummaryCards extends StatelessWidget {
           child: _buildSummaryCard(
             context,
             'Duration',
-            '${summary['durationDays'] ?? 0} days',
+            _formatDuration(summary['durationDays']),
             Icons.calendar_today,
             Colors.orange,
           ),
         ),
       ],
     );
+  }
+
+  String _formatDuration(dynamic days) {
+    if (days == null) return '0 days';
+    final dayCount = days is int ? days : int.tryParse(days.toString()) ?? 0;
+    
+    if (dayCount <= 30) {
+      return '$dayCount days';
+    } else if (dayCount <= 365) {
+      final months = (dayCount / 30).round();
+      return '${months}mo';
+    } else {
+      final years = (dayCount / 365).round();
+      return '${years}yr';
+    }
   }
 
   Widget _buildSummaryCard(
@@ -53,7 +68,8 @@ class SummaryCards extends StatelessWidget {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 120, // Fixed height to prevent size changes
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -63,24 +79,30 @@ class SummaryCards extends StatelessWidget {
         ),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,
-            size: 32,
+            size: 28,
             color: color,
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -116,21 +138,75 @@ class QuickStatsCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: stats
-                  .map((stat) => _buildStatItem(
-                        context,
-                        stat['label'] as String,
-                        stat['value'] as String,
-                        stat['icon'] as IconData,
-                      ))
-                  .toList(),
-            ),
+            // Create a 2x2 grid with fixed dimensions
+            _buildStatsGrid(context),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatsGrid(BuildContext context) {
+    // Ensure we have exactly 4 stats, pad with empty ones if needed
+    final paddedStats = List<Map<String, dynamic>>.from(stats);
+    while (paddedStats.length < 4) {
+      paddedStats.add({
+        'icon': Icons.info,
+        'label': 'N/A',
+        'value': '0',
+      });
+    }
+
+    return Column(
+      children: [
+        // First row
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                context,
+                paddedStats[0]['label'] as String,
+                paddedStats[0]['value'] as String,
+                paddedStats[0]['icon'] as IconData,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatItem(
+                context,
+                paddedStats[1]['label'] as String,
+                paddedStats[1]['value'] as String,
+                paddedStats[1]['icon'] as IconData,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Second row
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                context,
+                paddedStats[2]['label'] as String,
+                paddedStats[2]['value'] as String,
+                paddedStats[2]['icon'] as IconData,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: paddedStats.length > 3
+                  ? _buildStatItem(
+                      context,
+                      paddedStats[3]['label'] as String,
+                      paddedStats[3]['value'] as String,
+                      paddedStats[3]['icon'] as IconData,
+                    )
+                  : _buildEmptyStatItem(context),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -141,36 +217,56 @@ class QuickStatsCard extends StatelessWidget {
     IconData icon,
   ) {
     return Container(
+      height: 80, // Fixed height
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,
             size: 20,
             color: Theme.of(context).colorScheme.primary,
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStatItem(BuildContext context) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          style: BorderStyle.solid,
+        ),
       ),
     );
   }

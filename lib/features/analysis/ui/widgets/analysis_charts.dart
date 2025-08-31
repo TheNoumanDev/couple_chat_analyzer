@@ -11,6 +11,32 @@ class TopUsersChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final validUsers = data.take(6).where((user) {
+      final userData = user as Map<String, dynamic>;
+      final percentage = userData['percentage'] as double? ?? 0.0;
+      return percentage > 0;
+    }).toList();
+
+    if (validUsers.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Top Contributors',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('No data available'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -24,15 +50,29 @@ class TopUsersChart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: _buildPieChartSections(context),
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 2,
+            Row(
+              children: [
+                // Pie Chart
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sections: _buildPieChartSections(context, validUsers),
+                        centerSpaceRadius: 35,
+                        sectionsSpace: 2,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                // Legend
+                Expanded(
+                  flex: 1,
+                  child: _buildLegend(context, validUsers),
+                ),
+              ],
             ),
           ],
         ),
@@ -40,7 +80,7 @@ class TopUsersChart extends StatelessWidget {
     );
   }
 
-  List<PieChartSectionData> _buildPieChartSections(BuildContext context) {
+  List<PieChartSectionData> _buildPieChartSections(BuildContext context, List validUsers) {
     final colors = [
       Colors.blue,
       Colors.green,
@@ -50,8 +90,8 @@ class TopUsersChart extends StatelessWidget {
       Colors.teal,
     ];
 
-    return data.take(6).map((user) {
-      final index = data.indexOf(user);
+    return validUsers.map((user) {
+      final index = validUsers.indexOf(user);
       final userData = user as Map<String, dynamic>;
       final percentage = userData['percentage'] as double? ?? 0.0;
       
@@ -59,14 +99,79 @@ class TopUsersChart extends StatelessWidget {
         color: colors[index % colors.length],
         value: percentage,
         title: '${percentage.toStringAsFixed(1)}%',
-        radius: 50,
+        radius: 45,
         titleStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
       );
     }).toList();
+  }
+
+  Widget _buildLegend(BuildContext context, List validUsers) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+    ];
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: validUsers.map((user) {
+        final index = validUsers.indexOf(user);
+        final userData = user as Map<String, dynamic>;
+        final name = userData['name'] as String? ?? 'Unknown';
+        final messageCount = userData['messageCount'] as int? ?? 0;
+        final percentage = userData['percentage'] as double? ?? 0.0;
+        final color = colors[index % colors.length];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$messageCount msgs (${percentage.toStringAsFixed(1)}%)',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 }
 
@@ -527,6 +632,7 @@ class TimeActivityOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final peakHour = timeData['peakHour'] as Map<String, dynamic>? ?? {};
     final peakDay = timeData['peakDay'] as Map<String, dynamic>? ?? {};
+    final peakDate = timeData['peakDate'] as Map<String, dynamic>?;
 
     return Card(
       child: Padding(
@@ -541,28 +647,53 @@ class TimeActivityOverview extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: _buildTimeCard(
-                    context,
-                    'Peak Hour',
-                    peakHour['timeRange'] as String? ?? 'Unknown',
-                    '${peakHour['messages'] ?? 0} messages',
-                    Icons.access_time,
-                    Colors.blue,
-                  ),
+                // First row - Peak Hour and Peak Day
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTimeCard(
+                        context,
+                        'Peak Hour',
+                        _formatPeakHour(peakHour),
+                        '${peakHour['messages'] ?? 0} messages',
+                        Icons.access_time,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTimeCard(
+                        context,
+                        'Peak Day',
+                        _formatPeakDay(peakDay),
+                        _formatPeakDayDetails(peakDay),
+                        Icons.calendar_today,
+                        Colors.green,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildTimeCard(
-                    context,
-                    'Peak Day',
-                    peakDay['dayName'] as String? ?? 'Unknown',
-                    '${peakDay['messages'] ?? 0} messages',
-                    Icons.calendar_today,
-                    Colors.green,
-                  ),
+                
+                const SizedBox(height: 12),
+                
+                // Second row - Peak Date (most messages on specific date)
+                Row(
+                  children: [
+                    Expanded(
+                      child: peakDate != null
+                          ? _buildTimeCard(
+                              context,
+                              'Most Active Date',
+                              _formatPeakDate(peakDate),
+                              _formatPeakDateDetails(peakDate),
+                              Icons.event,
+                              Colors.purple,
+                            )
+                          : _buildEmptyCard(context, 'Peak Date', 'No data available'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -572,41 +703,173 @@ class TimeActivityOverview extends StatelessWidget {
     );
   }
 
+  String _formatPeakHour(Map<String, dynamic> peakHour) {
+    final timeRange = peakHour['timeRange'] as String? ?? '';
+    final hour = peakHour['hour'] as int?;
+    
+    if (timeRange.isNotEmpty && hour != null) {
+      // Convert 24-hour format to 12-hour format with AM/PM
+      final period = hour < 12 ? 'AM' : 'PM';
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      final nextHour = hour + 1;
+      final nextPeriod = nextHour < 12 ? 'AM' : 'PM';
+      final nextDisplayHour = nextHour == 0 ? 12 : (nextHour > 12 ? nextHour - 12 : nextHour);
+      
+      return '$timeRange\n($displayHour-$nextDisplayHour $period)';
+    }
+    
+    if (timeRange.isNotEmpty) return timeRange;
+    if (hour != null) {
+      final period = hour < 12 ? 'AM' : 'PM';
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '$displayHour $period';
+    }
+    
+    return 'Unknown';
+  }
+
+  String _formatPeakDay(Map<String, dynamic> peakDay) {
+    final dayName = peakDay['dayName'] as String?;
+    if (dayName != null) return dayName;
+    
+    final day = peakDay['day'] as int?;
+    if (day != null) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      if (day >= 1 && day <= 7) {
+        return days[day - 1];
+      }
+    }
+    
+    return 'Unknown';
+  }
+
+  String _formatPeakDayDetails(Map<String, dynamic> peakDay) {
+    final messages = peakDay['messages'] as int? ?? 0;
+    return '$messages messages';
+  }
+
+  String _formatPeakDate(Map<String, dynamic> peakDate) {
+    final formattedDate = peakDate['formattedDate'] as String?;
+    if (formattedDate != null && formattedDate.isNotEmpty) {
+      return formattedDate;
+    }
+
+    final date = peakDate['date'] as String?;
+    if (date != null && date.isNotEmpty) {
+      try {
+        // Try to format YYYY-MM-DD to DD/MM/YYYY
+        final parts = date.split('-');
+        if (parts.length == 3) {
+          return '${parts[2]}/${parts[1]}/${parts[0]}';
+        }
+        return date;
+      } catch (e) {
+        return date;
+      }
+    }
+    
+    return 'N/A';
+  }
+
+  String _formatPeakDateDetails(Map<String, dynamic> peakDate) {
+    final messages = peakDate['messages'] as int? ?? 0;
+    final dayName = peakDate['dayName'] as String?;
+    
+    if (dayName != null && dayName.isNotEmpty) {
+      return '$messages messages\n$dayName';
+    }
+    
+    return '$messages messages';
+  }
+
   Widget _buildTimeCard(
     BuildContext context,
     String title,
-    String value,
-    String subtitle,
+    String mainValue,
+    String subValue,
     IconData icon,
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
-            title,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            mainValue,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: color,
             ),
-            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
+          const SizedBox(height: 4),
           Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
+            subValue,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard(BuildContext context, String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.2),
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) ...[
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (subtitle.isNotEmpty) ...[
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+              ),
+            ),
+          ],
+          if (title.isEmpty && subtitle.isEmpty)
+            const SizedBox(height: 60), // Match height of other cards
         ],
       ),
     );
