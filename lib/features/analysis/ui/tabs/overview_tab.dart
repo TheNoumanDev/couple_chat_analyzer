@@ -155,67 +155,150 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _buildActivityOverviewCards(BuildContext context, Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final peakHour = timeAnalysis['peakHour'] as Map<String, dynamic>? ?? {};
-    final peakDay = timeAnalysis['peakDay'] as Map<String, dynamic>? ?? {};
-    final peakDate = timeAnalysis['peakDate'] as Map<String, dynamic>?;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        // First row - Peak Hour and Peak Day
-        Row(
-          children: [
-            Expanded(
-              child: _buildActivityCard(
-                context,
-                'Peak Hour',
-                _formatPeakHour(peakHour),
-                '${peakHour['messages'] ?? 0} messages',
-                Icons.access_time,
-                Colors.blue,
-              ),
+  Widget _buildNoTimeDataCard(BuildContext context) {
+  return Card(
+    color: Colors.grey.withOpacity(0.1),
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(
+            Icons.schedule,
+            size: 48,
+            color: Colors.blue.withOpacity(0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Activity Overview',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActivityCard(
-                context,
-                'Peak Day',
-                _formatPeakDay(peakDay),
-                '${peakDay['messages'] ?? 0} messages',
-                Icons.calendar_today,
-                Colors.green,
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Time analysis data will appear here after processing more chat messages.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.grey[600],
             ),
-          ],
-        ),
-        
-        const SizedBox(height: 12),
-        
-        // Second row - Peak Date (centered)
-        if (peakDate != null)
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  /// FIXED: Overview Tab Time Data Extraction Methods
+/// Replace these methods in overview_tab.dart
+
+/// Enhanced Activity Overview Cards with correct data extraction
+Widget _buildActivityOverviewCards(BuildContext context, Map<String, dynamic> timeAnalysis) {
+  debugPrint("🕐 OverviewTab: Building activity cards with keys: ${timeAnalysis.keys.join(', ')}");
+  
+  if (timeAnalysis.isEmpty) {
+    return _buildNoTimeDataCard(context);
+  }
+
+  // Extract peak hour and peak day with correct field names
+  final peakHour = _convertToStringMap(timeAnalysis['peakHour']) ?? {};
+  final peakDay = _convertToStringMap(timeAnalysis['peakDay']) ?? {};
+  final peakDate = _convertToStringMap(timeAnalysis['peakDate']);
+
+  debugPrint("🕐 Peak Hour data: $peakHour");
+  debugPrint("🕐 Peak Day data: $peakDay");
+
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              Expanded(
-                child: _buildActivityCard(
-                  context,
-                  'Most Active Date',
-                  _formatPeakDate(peakDate),
-                  _formatPeakDateDetails(peakDate),
-                  Icons.event,
-                  Colors.purple,
+              const Icon(Icons.schedule, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Activity Overview',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              )
+              ),
             ],
           ),
-      ],
-    );
-  }
+          const SizedBox(height: 16),
+          Column(
+            children: [
+              // First row - Peak Hour and Peak Day
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActivityCard(
+                      context,
+                      'Peak Hour',
+                      _formatPeakHour(peakHour),
+                      '${peakHour['count'] ?? 0} messages', // FIXED: Use 'count' instead of 'messages'
+                      Icons.access_time,
+                      Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildActivityCard(
+                      context,
+                      'Peak Day',
+                      _formatPeakDay(peakDay),
+                      '${peakDay['count'] ?? 0} messages', // FIXED: Use 'count' instead of 'messages'
+                      Icons.calendar_today,
+                      Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Second row - Peak Date (most messages on specific date)
+              Row(
+                children: [
+                  Expanded(
+                    child: peakDate != null
+                        ? _buildActivityCard(
+                            context,
+                            'Most Active Date',
+                            _formatPeakDate(peakDate),
+                            '${peakDate['count'] ?? 0} messages', // FIXED: Use 'count'
+                            Icons.event,
+                            Colors.purple,
+                          )
+                        : _buildActivityCard(
+                            context,
+                            'Activity Span',
+                            _getActivitySpan(timeAnalysis),
+                            'Total analyzed',
+                            Icons.timeline,
+                            Colors.orange,
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildActivityCard(
+                      context,
+                      'Total Messages',
+                      (timeAnalysis['totalMessages'] ?? 0).toString(),
+                      'Analyzed',
+                      Icons.message,
+                      Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildActivityCard(
     BuildContext context,
@@ -449,65 +532,93 @@ class OverviewTab extends StatelessWidget {
 
   // Peak hour formatting methods (same as before)
   String _formatPeakHour(Map<String, dynamic> peakHour) {
-    final timeRange = peakHour['timeRange'] as String? ?? '';
-    final hour = peakHour['hour'] as int?;
-    
-    if (timeRange.isNotEmpty && hour != null) {
-      final period = hour < 12 ? 'AM' : 'PM';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      final nextHour = hour + 1;
-      final nextPeriod = nextHour < 12 ? 'AM' : 'PM';
-      final nextDisplayHour = nextHour == 0 ? 12 : (nextHour > 12 ? nextHour - 12 : nextHour);
-      
-      return '$timeRange\n($displayHour-$nextDisplayHour $period)';
-    }
-    
-    if (timeRange.isNotEmpty) return timeRange;
-    if (hour != null) {
-      final period = hour < 12 ? 'AM' : 'PM';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      return '$displayHour $period';
-    }
-    
-    return 'Unknown';
+  if (peakHour.isEmpty) return 'Not Available';
+  
+  final timeRange = peakHour['timeRange'] as String?;
+  final hour = peakHour['hour'] as int?;
+  
+  if (timeRange != null && timeRange.isNotEmpty) {
+    return timeRange;
   }
+  
+  if (hour != null) {
+    // Convert 24-hour format to 12-hour format
+    final period = hour < 12 ? 'AM' : 'PM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final nextHour = hour + 1;
+    final nextDisplayHour = nextHour == 24 ? 0 : nextHour;
+    final nextPeriod = nextDisplayHour < 12 ? 'AM' : 'PM';
+    final nextDisplay = nextDisplayHour == 0 ? 12 : (nextDisplayHour > 12 ? nextDisplayHour - 12 : nextDisplayHour);
+    
+    return '$displayHour $period - $nextDisplay $nextPeriod';
+  }
+  
+  return 'Not Available';
+}
 
   String _formatPeakDay(Map<String, dynamic> peakDay) {
-    final dayName = peakDay['dayName'] as String?;
-    if (dayName != null) return dayName;
-    
-    final day = peakDay['day'] as int?;
-    if (day != null) {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      if (day >= 1 && day <= 7) {
-        return days[day - 1];
-      }
-    }
-    
-    return 'Unknown';
+  if (peakDay.isEmpty) return 'Not Available';
+  
+  final dayName = peakDay['dayName'] as String?;
+  if (dayName != null && dayName.isNotEmpty) {
+    return dayName;
   }
-
-  String _formatPeakDate(Map<String, dynamic> peakDate) {
-    final formattedDate = peakDate['formattedDate'] as String?;
-    if (formattedDate != null && formattedDate.isNotEmpty) {
-      return formattedDate;
+  
+  final day = peakDay['day'] as int?;
+  if (day != null) {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // Handle both 0-based (Sunday=0) and 1-based (Monday=1) indexing
+    if (day >= 1 && day <= 7) {
+      return dayNames[(day - 1) % 7]; // Convert 1-based to 0-based
+    } else if (day >= 0 && day <= 6) {
+      return dayNames[day]; // Already 0-based
     }
+  }
+  
+  return 'Not Available';
+}
 
-    final date = peakDate['date'] as String?;
-    if (date != null && date.isNotEmpty) {
-      try {
-        final parts = date.split('-');
-        if (parts.length == 3) {
-          return '${parts[2]}/${parts[1]}/${parts[0]}';
+String _getActivitySpan(Map<String, dynamic> timeAnalysis) {
+  if (timeAnalysis.containsKey('dateRange')) {
+    final dateRange = timeAnalysis['dateRange'];
+    if (dateRange is Map) {
+      final start = dateRange['start'] as String?;
+      final end = dateRange['end'] as String?;
+      
+      if (start != null && end != null) {
+        try {
+          final startDate = DateTime.parse(start);
+          final endDate = DateTime.parse(end);
+          final difference = endDate.difference(startDate).inDays;
+          
+          if (difference > 365) {
+            return '${(difference / 365).toStringAsFixed(1)} years';
+          } else if (difference > 30) {
+            return '${(difference / 30).toStringAsFixed(1)} months';
+          } else {
+            return '$difference days';
+          }
+        } catch (e) {
+          debugPrint('Error parsing date range: $e');
         }
-        return date;
-      } catch (e) {
-        return date;
       }
     }
-    
-    return 'N/A';
   }
+  
+  return '1+ Month';
+}
+
+/// Format peak date
+String _formatPeakDate(Map<String, dynamic> peakDate) {
+  if (peakDate.isEmpty) return 'Not Available';
+  
+  final date = peakDate['date'] as String?;
+  if (date != null && date.isNotEmpty) {
+    return date;
+  }
+  
+  return 'Not Available';
+}
 
   String _formatPeakDateDetails(Map<String, dynamic> peakDate) {
     final messages = peakDate['messages'] as int? ?? 0;
@@ -583,40 +694,53 @@ class OverviewTab extends StatelessWidget {
 
   /// Extract timeAnalysis data - it might be nested
   Map<String, dynamic> _extractTimeAnalysis(Map<String, dynamic> results) {
-    if (results.containsKey('timeAnalysis')) {
-      final timeData = _convertToStringMap(results['timeAnalysis']);
+  debugPrint("🕐 OverviewTab: Extracting time analysis from keys: ${results.keys.join(', ')}");
+  
+  // PRIORITY 1: Check direct timeAnalysis key
+  if (results.containsKey('timeAnalysis')) {
+    final timeData = _convertToStringMap(results['timeAnalysis']);
+    if (timeData != null && timeData.isNotEmpty) {
+      debugPrint("✅ Found timeAnalysis directly");
+      return timeData;
+    }
+  }
+  
+  // PRIORITY 2: Check nested in time container
+  if (results.containsKey('time')) {
+    final timeContainer = _convertToStringMap(results['time']);
+    if (timeContainer != null && timeContainer.containsKey('timeAnalysis')) {
+      final timeData = _convertToStringMap(timeContainer['timeAnalysis']);
       if (timeData != null && timeData.isNotEmpty) {
-        debugPrint("📊 Found timeAnalysis directly");
+        debugPrint("✅ Found timeAnalysis nested in time container");
         return timeData;
       }
     }
     
-    if (results.containsKey('time')) {
-      final timeContainer = _convertToStringMap(results['time']);
-      if (timeContainer != null && timeContainer.containsKey('timeAnalysis')) {
-        final timeData = _convertToStringMap(timeContainer['timeAnalysis']);
-        if (timeData != null && timeData.isNotEmpty) {
-          debugPrint("📊 Found timeAnalysis nested in time");
-          return timeData;
-        }
-      }
+    // OR if the time container itself contains the data directly
+    if (timeContainer != null && (timeContainer.containsKey('peakHour') || timeContainer.containsKey('peakDay'))) {
+      debugPrint("✅ Found time data directly in time container");
+      return timeContainer;
     }
-    
-    final directTimeFields = <String, dynamic>{};
-    for (final key in results.keys) {
-      if (key.contains('hourly') || key.contains('weekly') || key.contains('monthly') || key.contains('peak')) {
-        directTimeFields[key] = results[key];
-      }
-    }
-    
-    if (directTimeFields.isNotEmpty) {
-      debugPrint("📊 Found time fields at root level: ${directTimeFields.keys.join(', ')}");
-      return directTimeFields;
-    }
-    
-    debugPrint("📊 No timeAnalysis data found");
-    return {};
   }
+  
+  // PRIORITY 3: Check for individual time fields at root level
+  final directTimeFields = <String, dynamic>{};
+  for (final key in results.keys) {
+    if (key == 'peakHour' || key == 'peakDay' || key == 'totalMessages' || 
+        key.contains('hourly') || key.contains('weekly') || key.contains('monthly') ||
+        key.contains('peak') || key.contains('activity')) {
+      directTimeFields[key] = results[key];
+    }
+  }
+  
+  if (directTimeFields.isNotEmpty) {
+    debugPrint("✅ Found direct time fields at root: ${directTimeFields.keys.join(', ')}");
+    return directTimeFields;
+  }
+  
+  debugPrint("❌ No timeAnalysis data found");
+  return {};
+}
 
   /// Extract contentAnalysis data - it might be nested
   Map<String, dynamic> _extractContentAnalysis(Map<String, dynamic> results) {

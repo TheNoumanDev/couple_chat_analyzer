@@ -41,15 +41,16 @@ class _AnalysisPageState extends State<AnalysisPage>
 
     try {
       _analysisBloc = AnalysisBloc(analyzeChatUseCase: GetIt.instance.get());
-      
+
       _reportBloc = ReportsBloc(
         generateReportUseCase: GetIt.instance.get(),
         shareReportUseCase: GetIt.instance.get(),
         deleteReportUseCase: GetIt.instance.get(),
         getReportHistoryUseCase: GetIt.instance.get(),
       );
-      
-      _tabController = TabController(length: 5, vsync: this); // Changed from 4 to 5
+
+      _tabController =
+          TabController(length: 5, vsync: this); // Changed from 4 to 5
 
       _analysisBloc.add(StartAnalysisEvent(widget.chatId));
       debugPrint("✅ AnalysisPage initialized successfully");
@@ -86,7 +87,9 @@ class _AnalysisPageState extends State<AnalysisPage>
               Tab(icon: Icon(Icons.people), text: 'Users'),
               Tab(icon: Icon(Icons.analytics), text: 'Content'),
               Tab(icon: Icon(Icons.psychology), text: 'Insights'),
-              Tab(icon: Icon(Icons.bug_report), text: 'Debug'), // Added debug tab
+              Tab(
+                  icon: Icon(Icons.bug_report),
+                  text: 'Debug'), // Added debug tab
             ],
           ),
           actions: [
@@ -121,11 +124,13 @@ class _AnalysisPageState extends State<AnalysisPage>
             if (state is AnalysisSuccess) {
               // Fixed: Convert ChatAnalysisResult to Map with proper structure
               final results = _convertAnalysisResultToMap(state.result);
-              
+
               if (!results.containsKey('summary')) {
                 return _buildErrorView(
                     context,
-                    const AnalysisError(message: "Analysis results incomplete. Missing summary data."));
+                    const AnalysisError(
+                        message:
+                            "Analysis results incomplete. Missing summary data."));
               }
 
               return TabBarView(
@@ -175,10 +180,10 @@ class _AnalysisPageState extends State<AnalysisPage>
 
   void _generateReport(BuildContext context, Map<String, dynamic> results) {
     _reportBloc.add(GenerateReportEvent(
-      chatId: widget.chatId, 
+      chatId: widget.chatId,
       analysisResults: results,
     ));
-    
+
     showDialog(
       context: context,
       builder: (context) => BlocProvider.value(
@@ -190,51 +195,96 @@ class _AnalysisPageState extends State<AnalysisPage>
 
   /// Convert ChatAnalysisResult to Map for backward compatibility with UI
   /// FIXED: Preserve analyzer keys while extracting data properly
-  Map<String, dynamic> _convertAnalysisResultToMap(models.ChatAnalysisResult result) {
+  Map<String, dynamic> _convertAnalysisResultToMap(
+      models.ChatAnalysisResult result) {
     final combinedResults = <String, dynamic>{};
-    
-    debugPrint("🔍 Converting analysis result with ${result.results.length} entries:");
-    
+
+    debugPrint(
+        "🔄 Converting analysis result with ${result.results.length} entries:");
+
     // Process each analyzer result
     for (final entry in result.results.entries) {
-      final analyzerKey = entry.key;       // e.g., 'conversationDynamics'
-      final analysisResult = entry.value;  // AnalysisResult object
-      
+      final analyzerKey = entry.key; // e.g., 'content'
+      final analysisResult = entry.value; // AnalysisResult object
+
       debugPrint("  - Processing $analyzerKey: type=${analysisResult.type}");
       debugPrint("    Data keys: ${analysisResult.data.keys.join(', ')}");
-      
-      // Simply store the data under the analyzer key - this is what the UI expects
+
+      // Store the analyzer result under its key
       combinedResults[analyzerKey] = analysisResult.data;
-      
-      // ALSO: For backward compatibility, merge the data contents at root level
+
+      // ENHANCED: Also merge data contents at root level for backward compatibility
       // This ensures widgets that expect data at root level still work
       for (final dataEntry in analysisResult.data.entries) {
         if (!combinedResults.containsKey(dataEntry.key)) {
           combinedResults[dataEntry.key] = dataEntry.value;
+          debugPrint("    ✅ Merged '${dataEntry.key}' to root level");
+        } else {
+          debugPrint(
+              "    ⚠️ Skipped '${dataEntry.key}' (already exists at root)");
         }
       }
     }
-    
-    debugPrint("🔍 Final combined results structure:");
+
+    debugPrint("🎯 Final combined results structure:");
     debugPrint("  All keys: ${combinedResults.keys.toList()}");
-    
+
+    // Enhanced debugging: Show the structure of content-related data
+    if (combinedResults.containsKey('content')) {
+      final contentData = combinedResults['content'];
+      if (contentData is Map) {
+        debugPrint("📊 Content analyzer data structure:");
+        debugPrint("  Content keys: ${(contentData as Map).keys.join(', ')}");
+
+        // Show specific content analysis structure
+        (contentData as Map).forEach((key, value) {
+          if (value is Map) {
+            debugPrint(
+                "    $key -> Map with ${(value as Map).keys.length} keys");
+          } else if (value is List) {
+            debugPrint("    $key -> List with ${(value as List).length} items");
+          } else {
+            debugPrint("    $key -> ${value.runtimeType}: $value");
+          }
+        });
+      }
+    }
+
+    // Check for direct contentAnalysis key
+    if (combinedResults.containsKey('contentAnalysis')) {
+      final contentAnalysisData = combinedResults['contentAnalysis'];
+      if (contentAnalysisData is Map) {
+        debugPrint(
+            "📋 Direct contentAnalysis found with keys: ${(contentAnalysisData as Map).keys.join(', ')}");
+      }
+    }
+
     // Verify the analyzer keys are present
-    final expectedKeys = ['conversationDynamics', 'behaviorPatterns', 'relationshipDynamics', 'contentIntelligence', 'temporalInsights'];
-    final presentKeys = expectedKeys.where((key) => combinedResults.containsKey(key)).toList();
+    final expectedKeys = [
+      'content',
+      'conversationDynamics',
+      'behaviorPatterns',
+      'relationshipDynamics',
+      'contentIntelligence',
+      'temporalInsights'
+    ];
+    final presentKeys =
+        expectedKeys.where((key) => combinedResults.containsKey(key)).toList();
     debugPrint("✅ Present analyzer keys: $presentKeys");
-    
+
     // Debug: Print the actual structure of each analyzer's data
     for (final key in expectedKeys) {
       if (combinedResults.containsKey(key)) {
         final data = combinedResults[key];
         if (data is Map) {
-          debugPrint("📊 $key data structure: ${(data as Map).keys.join(', ')}");
+          debugPrint(
+              "📊 $key data structure: ${(data as Map).keys.join(', ')}");
         } else {
           debugPrint("📊 $key data type: ${data.runtimeType}");
         }
       }
     }
-    
+
     return combinedResults;
   }
 }

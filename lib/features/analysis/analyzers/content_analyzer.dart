@@ -1,3 +1,8 @@
+// ============================================================================
+// COMPLETE FIXED CONTENT ANALYZER - Enhanced data output structure
+// File: lib/features/analysis/analyzers/content_analyzer.dart
+// ============================================================================
+
 import 'package:flutter/foundation.dart';
 import '../../../shared/domain.dart';
 import 'base_analyzer.dart';
@@ -15,16 +20,16 @@ class ContentAnalyzer implements BaseAnalyzer {
 
   @override
   Future<Map<String, dynamic>> analyze(ChatEntity chat) async {
-    debugPrint("ContentAnalyzer: Analyzing content patterns");
+    debugPrint("📊 ContentAnalyzer: Starting content analysis");
 
     // Filter out system messages
     final realMessages = chat.messages
         .where((msg) =>
             msg.senderId != "System" &&
-            !msg.content.toLowerCase().contains('created group') &&
-            !msg.content.toLowerCase().contains('added') &&
-            !msg.content.toLowerCase().contains('left'))
+            !_isSystemMessage(msg.content))
         .toList();
+
+    debugPrint("📊 ContentAnalyzer: Processing ${realMessages.length} real messages");
 
     // Initialize counters - use a mutable object to track totals
     final totals = {
@@ -38,7 +43,11 @@ class ContentAnalyzer implements BaseAnalyzer {
     final Map<String, int> emojiCounts = {};
     final Map<String, int> domainCounts = {};
     final Map<String, Map<String, int>> domainCountsByUser = {};
-    final Map<String, int> messageLengthDistribution = {};
+    final Map<String, int> messageLengthDistribution = {
+      'short': 0,
+      'medium': 0,
+      'long': 0,
+    };
 
     // Initialize user-specific counters
     for (final user in chat.users) {
@@ -54,38 +63,52 @@ class ContentAnalyzer implements BaseAnalyzer {
     }
 
     // Calculate averages
-    final avgWordsPerMessage = realMessages.isNotEmpty ? totals['words']! / realMessages.length : 0;
-    final avgCharsPerMessage = realMessages.isNotEmpty ? totals['characters']! / realMessages.length : 0;
+    final avgWordsPerMessage = realMessages.isNotEmpty ? 
+        (totals['words']! / realMessages.length) : 0.0;
+    final avgCharsPerMessage = realMessages.isNotEmpty ? 
+        (totals['characters']! / realMessages.length) : 0.0;
 
-    // Get top emojis
+    // Get top emojis (sorted by count)
     final topEmojis = emojiCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Get top domains
+    // Get top domains (sorted by count)
     final topDomains = domainCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    debugPrint("ContentAnalyzer: Total words: ${totals['words']}, Total emojis: ${totals['emojis']}");
+    debugPrint("📊 ContentAnalyzer Results:");
+    debugPrint("  - Total words: ${totals['words']}");
+    debugPrint("  - Total emojis: ${totals['emojis']}");
+    debugPrint("  - Total media: ${totals['media']}");
+    debugPrint("  - Top emojis count: ${topEmojis.length}");
+    debugPrint("  - Message length distribution: $messageLengthDistribution");
+    debugPrint("  - Top domains count: ${topDomains.length}");
 
+    // Return the complete content analysis data
+    final contentAnalysisData = {
+      'totalWords': totals['words']!,
+      'totalCharacters': totals['characters']!,
+      'totalEmojis': totals['emojis']!,
+      'totalUrls': totals['urls']!,
+      'totalMedia': totals['media']!,
+      'avgWordsPerMessage': avgWordsPerMessage.toStringAsFixed(1),
+      'avgCharsPerMessage': avgCharsPerMessage.toStringAsFixed(1),
+      'topEmojis': topEmojis.take(10).map((e) => {
+        'emoji': e.key,
+        'count': e.value,
+      }).toList(),
+      'topDomains': topDomains.take(10).map((e) => {
+        'domain': e.key,
+        'count': e.value,
+      }).toList(),
+      'messageLengthDistribution': messageLengthDistribution,
+      'domainsByUser': domainCountsByUser,
+    };
+
+    debugPrint("✅ ContentAnalyzer: Analysis complete, returning data with ${contentAnalysisData.keys.length} keys");
+    
     return {
-      'contentAnalysis': {
-        'totalWords': totals['words']!,
-        'totalCharacters': totals['characters']!,
-        'totalEmojis': totals['emojis']!,
-        'totalUrls': totals['urls']!,
-        'totalMedia': totals['media']!,
-        'avgWordsPerMessage': avgWordsPerMessage.toStringAsFixed(1),
-        'avgCharsPerMessage': avgCharsPerMessage.toStringAsFixed(1),
-        'topEmojis': topEmojis.take(10).map((e) => {
-          'emoji': e.key,
-          'count': e.value,
-        }).toList(),
-        'topDomains': topDomains.take(10).map((e) => {
-          'domain': e.key,
-          'count': e.value,
-        }).toList(),
-        'messageLengthDistribution': messageLengthDistribution,
-      }
+      'contentAnalysis': contentAnalysisData,
     };
   }
 
@@ -115,7 +138,8 @@ class ContentAnalyzer implements BaseAnalyzer {
       } else {
         lengthCategory = 'long';
       }
-      messageLengthDistribution[lengthCategory] = (messageLengthDistribution[lengthCategory] ?? 0) + 1;
+      messageLengthDistribution[lengthCategory] = 
+          (messageLengthDistribution[lengthCategory] ?? 0) + 1;
 
       // Count emojis
       final emojiMatches = emojiRegExp.allMatches(content);
@@ -126,6 +150,7 @@ class ContentAnalyzer implements BaseAnalyzer {
         emojiCounts[emoji] = (emojiCounts[emoji] ?? 0) + 1;
       }
     } else {
+      // Handle media messages
       totals['media'] = totals['media']! + 1;
     }
 
@@ -147,8 +172,52 @@ class ContentAnalyzer implements BaseAnalyzer {
           }
         }
       } catch (e) {
-        debugPrint("Error parsing URL: $url - $e");
+        debugPrint("⚠️ Error parsing URL: $url - $e");
       }
     }
+  }
+
+  /// Check if a message is a system message
+  bool _isSystemMessage(String content) {
+    const systemMessagePatterns = [
+      'created group',
+      'added',
+      'left',
+      'changed the subject',
+      'security code changed',
+      'joined using',
+      'removed ',
+      'changed this group',
+      'messages and calls are end-to-end encrypted',
+      'missed voice call',
+      'missed video call',
+      'you added',
+      'you removed',
+      'you changed',
+      'changed their phone number',
+      'your security code with',
+      'changed to',
+      'group description was changed',
+      'group icon changed',
+      'group settings changed',
+      'waiting for this message',
+      'deleted this message',
+      'this message was deleted',
+      'message deleted',
+      'you deleted this message',
+      'calling...',
+      'call ended',
+      'no answer',
+      'busy',
+      'unavailable',
+    ];
+
+    final lowerContent = content.toLowerCase();
+    for (final pattern in systemMessagePatterns) {
+      if (lowerContent.contains(pattern)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

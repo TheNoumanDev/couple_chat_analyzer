@@ -176,7 +176,7 @@ class TopUsersChart extends StatelessWidget {
 }
 
 class HourlyActivityChart extends StatelessWidget {
-  final List<dynamic> data;
+  final Map<String, dynamic> data;
 
   const HourlyActivityChart({
     Key? key,
@@ -185,68 +185,131 @@ class HourlyActivityChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Convert hourly data to list format
+    final List<Map<String, dynamic>> hourlyList = [];
+    
+    for (int hour = 0; hour < 24; hour++) {
+      final hourStr = hour.toString().padLeft(2, '0');
+      final count = data[hourStr] as int? ?? data[hour.toString()] as int? ?? 0;
+      hourlyList.add({
+        'hour': hour,
+        'hourLabel': '${hourStr}:00',
+        'count': count,
+      });
+    }
+    
+    final maxCount = hourlyList.isEmpty ? 1 : 
+        hourlyList.map((h) => h['count'] as int).reduce((a, b) => a > b ? a : b);
+    
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Hourly Activity',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Text('${value.toInt()}');
-                        },
+            const SizedBox(height: 8),
+            Text(
+              'Messages sent throughout the day',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Horizontal bars for each hour
+            ...hourlyList.map((hourData) {
+              final hour = hourData['hour'] as int;
+              final hourLabel = hourData['hourLabel'] as String;
+              final count = hourData['count'] as int;
+              final percentage = maxCount > 0 ? count / maxCount : 0.0;
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    // Hour label
+                    SizedBox(
+                      width: 50,
+                      child: Text(
+                        hourLabel,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                        ),
                       ),
                     ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  borderData: FlBorderData(show: true),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: _buildHourlySpots(),
-                      isCurved: true,
-                      color: Theme.of(context).colorScheme.primary,
-                      barWidth: 3,
-                      dotData: FlDotData(show: true),
+                    const SizedBox(width: 12),
+                    
+                    // Horizontal bar
+                    Expanded(
+                      child: Container(
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Stack(
+                          children: [
+                            if (percentage > 0)
+                              FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: percentage,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _getHourColor(hour),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            if (count > 0)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    count.toString(),
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: percentage > 0.3 ? Colors.white : 
+                                             Theme.of(context).colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+            }).toList(),
           ],
         ),
       ),
     );
   }
 
-  List<FlSpot> _buildHourlySpots() {
-    return data.map((item) {
-      final itemData = item as Map<String, dynamic>;
-      final hour = (itemData['hour'] as int).toDouble();
-      final messages = (itemData['messages'] as int).toDouble();
-      return FlSpot(hour, messages);
-    }).toList();
+  Color _getHourColor(int hour) {
+    // Color coding based on time of day
+    if (hour >= 6 && hour < 12) return Colors.orange; // Morning
+    if (hour >= 12 && hour < 18) return Colors.blue;  // Afternoon
+    if (hour >= 18 && hour < 22) return Colors.green; // Evening
+    return Colors.purple; // Night
   }
 }
-
 class WeeklyActivityChart extends StatelessWidget {
   final List<dynamic> data;
 
@@ -257,73 +320,148 @@ class WeeklyActivityChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final List<String> dayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    // Convert data to proper format
+    final List<Map<String, dynamic>> weeklyData = [];
+    
+    if (data.isEmpty) {
+      // If no data, create empty structure
+      for (int i = 0; i < 7; i++) {
+        weeklyData.add({
+          'dayName': dayNames[i],
+          'dayShort': dayShort[i],
+          'count': 0,
+        });
+      }
+    } else {
+      // Process existing data
+      for (int i = 0; i < 7; i++) {
+        final dayData = i < data.length ? data[i] as Map<String, dynamic>? : null;
+        weeklyData.add({
+          'dayName': dayNames[i],
+          'dayShort': dayShort[i],
+          'count': dayData?['messages'] as int? ?? dayData?['count'] as int? ?? 0,
+        });
+      }
+    }
+    
+    final maxCount = weeklyData.isEmpty ? 1 : 
+        weeklyData.map((d) => d['count'] as int).reduce((a, b) => a > b ? a : b);
+    
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Weekly Activity',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                          final index = value.toInt() - 1;
-                          if (index >= 0 && index < days.length) {
-                            return Text(days[index]);
-                          }
-                          return const Text('');
-                        },
+            const SizedBox(height: 8),
+            Text(
+              'Messages per day of the week',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Horizontal bars for each day
+            ...weeklyData.asMap().entries.map((entry) {
+              final index = entry.key;
+              final dayData = entry.value;
+              final count = dayData['count'] as int;
+              final dayShort = dayData['dayShort'] as String;
+              final percentage = maxCount > 0 ? count / maxCount : 0.0;
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    // Day label
+                    SizedBox(
+                      width: 50,
+                      child: Text(
+                        dayShort,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  borderData: FlBorderData(show: true),
-                  barGroups: _buildWeeklyBars(context),
+                    const SizedBox(width: 12),
+                    
+                    // Horizontal bar
+                    Expanded(
+                      child: Container(
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Stack(
+                          children: [
+                            if (percentage > 0)
+                              FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: percentage,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _getDayColor(index),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  count.toString(),
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: percentage > 0.3 ? Colors.white : 
+                                           Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
+              );
+            }).toList(),
           ],
         ),
       ),
     );
   }
 
-  List<BarChartGroupData> _buildWeeklyBars(BuildContext context) {
-    return data.map((item) {
-      final itemData = item as Map<String, dynamic>;
-      final day = itemData['day'] as int;
-      final messages = (itemData['messages'] as int).toDouble();
-      
-      return BarChartGroupData(
-        x: day,
-        barRods: [
-          BarChartRodData(
-            toY: messages,
-            color: Theme.of(context).colorScheme.secondary,
-            width: 20,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ],
-      );
-    }).toList();
+  Color _getDayColor(int dayIndex) {
+    final colors = [
+      Colors.red,     // Monday
+      Colors.orange,  // Tuesday
+      Colors.yellow,  // Wednesday
+      Colors.green,   // Thursday
+      Colors.blue,    // Friday
+      Colors.indigo,  // Saturday
+      Colors.purple,  // Sunday
+    ];
+    return colors[dayIndex % colors.length];
   }
 }
 
@@ -337,72 +475,569 @@ class MonthlyActivityChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get last 12 months of data
+    final List<Map<String, dynamic>> monthlyData = [];
+    
+    if (data.isNotEmpty) {
+      // Sort by month and take last 12
+      final sortedData = List<dynamic>.from(data);
+      sortedData.sort((a, b) {
+        final aMonth = (a as Map<String, dynamic>)['month'] as String? ?? '';
+        final bMonth = (b as Map<String, dynamic>)['month'] as String? ?? '';
+        return aMonth.compareTo(bMonth);
+      });
+      
+      final last12 = sortedData.take(12).toList();
+      
+      for (final monthData in last12) {
+        final month = (monthData as Map<String, dynamic>)['month'] as String? ?? '';
+        final count = monthData['messages'] as int? ?? monthData['count'] as int? ?? 0;
+        
+        monthlyData.add({
+          'month': month,
+          'monthLabel': _formatMonth(month),
+          'count': count,
+        });
+      }
+    }
+    
+    final maxCount = monthlyData.isEmpty ? 1 : 
+        monthlyData.map((m) => m['count'] as int).reduce((a, b) => a > b ? a : b);
+    
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Monthly Activity',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
+            const SizedBox(height: 8),
+            Text(
+              'Messages per month (last ${monthlyData.length} months)',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            if (monthlyData.isEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    'No monthly data available',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                     ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index >= 0 && index < data.length) {
-                            final month = data[index]['month'] as String;
-                            return Text(month.substring(5)); // Show MM part of YYYY-MM
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  borderData: FlBorderData(show: true),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: _buildMonthlySpots(),
-                      isCurved: true,
-                      color: Theme.of(context).colorScheme.tertiary,
-                      barWidth: 3,
-                      dotData: FlDotData(show: true),
-                    ),
-                  ],
                 ),
               ),
-            ),
+            ] else ...[
+              // Horizontal bars for each month
+              ...monthlyData.map((monthData) {
+                final monthLabel = monthData['monthLabel'] as String;
+                final count = monthData['count'] as int;
+                final percentage = maxCount > 0 ? count / maxCount : 0.0;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      // Month label
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          monthLabel,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Horizontal bar
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Stack(
+                            children: [
+                              if (percentage > 0)
+                                FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: percentage,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    count.toString(),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: percentage > 0.3 ? Colors.white : 
+                                             Theme.of(context).colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
           ],
         ),
       ),
     );
   }
 
-  List<FlSpot> _buildMonthlySpots() {
-    return data.asMap().entries.map((entry) {
-      final index = entry.key.toDouble();
-      final itemData = entry.value as Map<String, dynamic>;
-      final messages = (itemData['messages'] as int).toDouble();
-      return FlSpot(index, messages);
-    }).toList();
+  String _formatMonth(String monthStr) {
+    try {
+      if (monthStr.contains('-') && monthStr.length >= 7) {
+        // Format: YYYY-MM
+        final parts = monthStr.split('-');
+        if (parts.length >= 2) {
+          final year = parts[0];
+          final month = int.parse(parts[1]);
+          const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return '${monthNames[month]} $year';
+        }
+      }
+    } catch (e) {
+      debugPrint('Error formatting month: $monthStr - $e');
+    }
+    return monthStr;
   }
 }
+
+class TopConversationDaysChart extends StatelessWidget {
+  final List<dynamic> data;
+
+  const TopConversationDaysChart({
+    Key? key,
+    required this.data,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Take top 10 days
+    final topDays = data.take(10).toList();
+    
+    final maxCount = topDays.isEmpty ? 1 : 
+        topDays.map((d) => (d as Map<String, dynamic>)['count'] as int? ?? 0)
+               .reduce((a, b) => a > b ? a : b);
+    
+    return Card(
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Top Conversation Days',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Days with the most messages',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            if (topDays.isEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    'No daily data available',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Horizontal bars for top days
+              ...topDays.asMap().entries.map((entry) {
+                final index = entry.key;
+                final dayData = entry.value as Map<String, dynamic>;
+                final date = dayData['date'] as String? ?? 'Unknown';
+                final count = dayData['count'] as int? ?? 0;
+                final percentage = maxCount > 0 ? count / maxCount : 0.0;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      // Rank
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: _getRankColor(index),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Date
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          _formatDate(date),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Horizontal bar
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Stack(
+                            children: [
+                              if (percentage > 0)
+                                FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: percentage,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: _getRankColor(index).withOpacity(0.8),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '$count messages',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: percentage > 0.3 ? Colors.white : 
+                                             Theme.of(context).colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getRankColor(int rank) {
+    final colors = [
+      const Color(0xFFFFD700), // Gold - 1st
+      const Color(0xFFC0C0C0), // Silver - 2nd  
+      const Color(0xFFCD7F32), // Bronze - 3rd
+      Colors.blue,              // 4th+
+      Colors.green,
+      Colors.purple,
+      Colors.teal,
+      Colors.red,
+      Colors.indigo,
+      Colors.pink,
+    ];
+    return colors[rank % colors.length];
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      if (dateStr.contains('/')) {
+        // Handle DD/MM/YYYY or MM/DD/YYYY format
+        final parts = dateStr.split('/');
+        if (parts.length >= 3) {
+          return '${parts[1]}/${parts[0]}'; // MM/DD
+        }
+      } else if (dateStr.contains('-')) {
+        // Handle YYYY-MM-DD format
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          return '${parts[2]}/${parts[1]}'; // DD/MM
+        }
+      }
+    } catch (e) {
+      debugPrint('Error formatting date: $dateStr - $e');
+    }
+    return dateStr;
+  }
+}
+
+// 📈 RECENT ACTIVITY CHART - Last 7-14 days
+class RecentActivityChart extends StatelessWidget {
+  final List<dynamic> data;
+
+  const RecentActivityChart({
+    Key? key,
+    required this.data,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Sort by date and get recent data
+    final sortedData = List<dynamic>.from(data);
+    sortedData.sort((a, b) {
+      final aDate = (a as Map<String, dynamic>)['date'] as String? ?? '';
+      final bDate = (b as Map<String, dynamic>)['date'] as String? ?? '';
+      return bDate.compareTo(aDate); // Reverse order for recent first
+    });
+    
+    final recentData = sortedData.take(14).toList();
+    
+    final maxCount = recentData.isEmpty ? 1 : 
+        recentData.map((d) => (d as Map<String, dynamic>)['count'] as int? ?? 0)
+                  .reduce((a, b) => a > b ? a : b);
+    
+    return Card(
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recent Activity',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Messages in the last ${recentData.length} days',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            if (recentData.isEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    'No recent activity data available',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Horizontal bars for recent days
+              ...recentData.map((dayData) {
+                final dayDataMap = dayData as Map<String, dynamic>;
+                final date = dayDataMap['date'] as String? ?? 'Unknown';
+                final count = dayDataMap['count'] as int? ?? 0;
+                final percentage = maxCount > 0 ? count / maxCount : 0.0;
+                final dayOfWeek = _getDayOfWeek(date);
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      // Date and day
+                      SizedBox(
+                        width: 90,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _formatDate(date),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              dayOfWeek,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Horizontal bar
+                      Expanded(
+                        child: Container(
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Stack(
+                            children: [
+                              if (percentage > 0)
+                                FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: percentage,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: _getActivityColor(count, maxCount),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    count.toString(),
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: percentage > 0.3 ? Colors.white : 
+                                             Theme.of(context).colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getActivityColor(int count, int maxCount) {
+    final ratio = count / maxCount;
+    if (ratio > 0.8) return Colors.green;
+    if (ratio > 0.6) return Colors.blue;
+    if (ratio > 0.4) return Colors.orange;
+    if (ratio > 0.2) return Colors.yellow;
+    return Colors.grey;
+  }
+
+  String _getDayOfWeek(String dateStr) {
+    try {
+      DateTime? date;
+      if (dateStr.contains('/')) {
+        final parts = dateStr.split('/');
+        if (parts.length >= 3) {
+          final day = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
+          date = DateTime(year, month, day);
+        }
+      } else if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          final year = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[2]);
+          date = DateTime(year, month, day);
+        }
+      }
+      
+      if (date != null) {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return days[date.weekday - 1];
+      }
+    } catch (e) {
+      debugPrint('Error parsing date: $dateStr - $e');
+    }
+    return '';
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      if (dateStr.contains('/')) {
+        final parts = dateStr.split('/');
+        if (parts.length >= 3) {
+          return '${parts[0]}/${parts[1]}'; // DD/MM
+        }
+      } else if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          return '${parts[2]}/${parts[1]}'; // DD/MM
+        }
+      }
+    } catch (e) {
+      debugPrint('Error formatting date: $dateStr - $e');
+    }
+    return dateStr;
+  }
+}
+
 
 class TopEmojisChart extends StatelessWidget {
   final List<dynamic> data;
@@ -414,62 +1049,211 @@ class TopEmojisChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("😀 TopEmojisChart: Building with ${data.length} emoji entries");
+    
+    // Ensure we have valid data
+    if (data.isEmpty) {
+      return _buildNoDataCard(context);
+    }
+
+    // Convert and validate the data
+    final validEmojis = <Map<String, dynamic>>[];
+    for (final item in data) {
+      if (item is Map<String, dynamic> && 
+          item.containsKey('emoji') && 
+          item.containsKey('count')) {
+        validEmojis.add(item);
+      } else {
+        debugPrint("⚠️ TopEmojisChart: Invalid emoji data item: $item");
+      }
+    }
+
+    if (validEmojis.isEmpty) {
+      return _buildNoDataCard(context);
+    }
+
+    // Sort by count (descending) and take top 10
+    validEmojis.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    final topEmojis = validEmojis.take(10).toList();
+
+    // Get the maximum count for scaling the bars
+    final maxCount = topEmojis.isNotEmpty ? (topEmojis.first['count'] as int) : 1;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                const Icon(Icons.emoji_emotions, color: Colors.yellow),
+                const SizedBox(width: 8),
+                Text(
+                  'Top Emojis',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${topEmojis.length} emojis',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...topEmojis.asMap().entries.map((entry) {
+              final index = entry.key;
+              final emoji = entry.value;
+              return _buildEmojiBar(
+                context, 
+                emoji['emoji'] as String,
+                emoji['count'] as int,
+                maxCount,
+                index,
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmojiBar(
+    BuildContext context,
+    String emoji,
+    int count,
+    int maxCount,
+    int index,
+  ) {
+    // Calculate the width percentage (0.0 to 1.0)
+    final widthPercent = maxCount > 0 ? count / maxCount : 0.0;
+    
+    // Color gradient for different positions
+    final colors = [
+      Colors.yellow,
+      Colors.orange,
+      Colors.red,
+      Colors.purple,
+      Colors.blue,
+      Colors.green,
+      Colors.teal,
+      Colors.indigo,
+      Colors.pink,
+      Colors.amber,
+    ];
+    final color = colors[index % colors.length];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          // Emoji display
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Center(
+              child: Text(
+                emoji,
+                style: const TextStyle(fontSize: 20),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // Progress bar and count
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      emoji,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Progress bar
+                Container(
+                  height: 6,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: widthPercent,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoDataCard(BuildContext context) {
+    return Card(
+      color: Colors.grey.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons.emoji_emotions,
+              size: 48,
+              color: Colors.yellow.withOpacity(0.5),
+            ),
+            const SizedBox(height: 12),
             Text(
               'Top Emojis',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
-            ...data.take(10).map((emoji) {
-              final emojiData = emoji as Map<String, dynamic>;
-              final maxCount = data.isNotEmpty ? (data.first as Map<String, dynamic>)['count'] as int : 1;
-              
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Text(
-                      emojiData['emoji'] as String,
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: (emojiData['count'] as int) / maxCount,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${emojiData['count']}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+            const SizedBox(height: 8),
+            Text(
+              'No emoji data available yet. Import more chat data to see emoji usage patterns.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -533,17 +1317,32 @@ class MessageLengthChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final short = data['short'] as int? ?? 0;
+    final medium = data['medium'] as int? ?? 0;
+    final long = data['long'] as int? ?? 0;
+    final total = short + medium + long;
+
+    if (total == 0) {
+      return _buildNoDataCard(context);
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Message Length Distribution',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.bar_chart, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'Message Length Distribution',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(
@@ -552,9 +1351,10 @@ class MessageLengthChart extends StatelessWidget {
                   child: _buildLengthCard(
                     context,
                     'Short',
-                    data['short'] as int? ?? 0,
-                    Icons.short_text,
+                    short,
+                    total,
                     Colors.green,
+                    Icons.remove,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -562,9 +1362,10 @@ class MessageLengthChart extends StatelessWidget {
                   child: _buildLengthCard(
                     context,
                     'Medium',
-                    data['medium'] as int? ?? 0,
-                    Icons.text_fields,
+                    medium,
+                    total,
                     Colors.orange,
+                    Icons.text_fields,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -572,9 +1373,10 @@ class MessageLengthChart extends StatelessWidget {
                   child: _buildLengthCard(
                     context,
                     'Long',
-                    data['long'] as int? ?? 0,
-                    Icons.notes,
+                    long,
+                    total,
                     Colors.red,
+                    Icons.subject,
                   ),
                 ),
               ],
@@ -589,32 +1391,81 @@ class MessageLengthChart extends StatelessWidget {
     BuildContext context,
     String label,
     int count,
-    IconData icon,
+    int total,
     Color color,
+    IconData icon,
   ) {
+    final percentage = total > 0 ? (count / total * 100).toStringAsFixed(1) : '0.0';
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
+          Icon(icon, size: 28, color: color),
           const SizedBox(height: 8),
           Text(
             count.toString(),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$percentage%',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.grey[600],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoDataCard(BuildContext context) {
+    return Card(
+      color: Colors.grey.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons.bar_chart,
+              size: 48,
+              color: Colors.green.withOpacity(0.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Message Length Distribution',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Message length analysis will appear here after processing more chat data.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -630,70 +1481,69 @@ class TimeActivityOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final peakHour = timeData['peakHour'] as Map<String, dynamic>? ?? {};
-    final peakDay = timeData['peakDay'] as Map<String, dynamic>? ?? {};
-    final peakDate = timeData['peakDate'] as Map<String, dynamic>?;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Activity Overview',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.schedule, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Activity Overview',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            Column(
+            Row(
               children: [
-                // First row - Peak Hour and Peak Day
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTimeCard(
-                        context,
-                        'Peak Hour',
-                        _formatPeakHour(peakHour),
-                        '${peakHour['messages'] ?? 0} messages',
-                        Icons.access_time,
-                        Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTimeCard(
-                        context,
-                        'Peak Day',
-                        _formatPeakDay(peakDay),
-                        _formatPeakDayDetails(peakDay),
-                        Icons.calendar_today,
-                        Colors.green,
-                      ),
-                    ),
-                  ],
+                Expanded(
+                  child: _buildTimeCard(
+                    context,
+                    'Peak Hour',
+                    _getPeakHour(),
+                    Icons.trending_up,
+                    Colors.orange,
+                  ),
                 ),
-                
-                const SizedBox(height: 12),
-                
-                // Second row - Peak Date (most messages on specific date)
-                Row(
-                  children: [
-                    Expanded(
-                      child: peakDate != null
-                          ? _buildTimeCard(
-                              context,
-                              'Most Active Date',
-                              _formatPeakDate(peakDate),
-                              _formatPeakDateDetails(peakDate),
-                              Icons.event,
-                              Colors.purple,
-                            )
-                          : _buildEmptyCard(context, 'Peak Date', 'No data available'),
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTimeCard(
+                    context,
+                    'Most Active Day',
+                    _getMostActiveDay(),
+                    Icons.calendar_today,
+                    Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTimeCard(
+                    context,
+                    'Total Days',
+                    _getTotalDays(),
+                    Icons.date_range,
+                    Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTimeCard(
+                    context,
+                    'Activity Span',
+                    _getActivitySpan(),
+                    Icons.timeline,
+                    Colors.teal,
+                  ),
                 ),
               ],
             ),
@@ -703,175 +1553,81 @@ class TimeActivityOverview extends StatelessWidget {
     );
   }
 
-  String _formatPeakHour(Map<String, dynamic> peakHour) {
-    final timeRange = peakHour['timeRange'] as String? ?? '';
-    final hour = peakHour['hour'] as int?;
-    
-    if (timeRange.isNotEmpty && hour != null) {
-      // Convert 24-hour format to 12-hour format with AM/PM
-      final period = hour < 12 ? 'AM' : 'PM';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      final nextHour = hour + 1;
-      final nextPeriod = nextHour < 12 ? 'AM' : 'PM';
-      final nextDisplayHour = nextHour == 0 ? 12 : (nextHour > 12 ? nextHour - 12 : nextHour);
-      
-      return '$timeRange\n($displayHour-$nextDisplayHour $period)';
-    }
-    
-    if (timeRange.isNotEmpty) return timeRange;
-    if (hour != null) {
-      final period = hour < 12 ? 'AM' : 'PM';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      return '$displayHour $period';
-    }
-    
-    return 'Unknown';
-  }
-
-  String _formatPeakDay(Map<String, dynamic> peakDay) {
-    final dayName = peakDay['dayName'] as String?;
-    if (dayName != null) return dayName;
-    
-    final day = peakDay['day'] as int?;
-    if (day != null) {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      if (day >= 1 && day <= 7) {
-        return days[day - 1];
-      }
-    }
-    
-    return 'Unknown';
-  }
-
-  String _formatPeakDayDetails(Map<String, dynamic> peakDay) {
-    final messages = peakDay['messages'] as int? ?? 0;
-    return '$messages messages';
-  }
-
-  String _formatPeakDate(Map<String, dynamic> peakDate) {
-    final formattedDate = peakDate['formattedDate'] as String?;
-    if (formattedDate != null && formattedDate.isNotEmpty) {
-      return formattedDate;
-    }
-
-    final date = peakDate['date'] as String?;
-    if (date != null && date.isNotEmpty) {
-      try {
-        // Try to format YYYY-MM-DD to DD/MM/YYYY
-        final parts = date.split('-');
-        if (parts.length == 3) {
-          return '${parts[2]}/${parts[1]}/${parts[0]}';
-        }
-        return date;
-      } catch (e) {
-        return date;
-      }
-    }
-    
-    return 'N/A';
-  }
-
-  String _formatPeakDateDetails(Map<String, dynamic> peakDate) {
-    final messages = peakDate['messages'] as int? ?? 0;
-    final dayName = peakDate['dayName'] as String?;
-    
-    if (dayName != null && dayName.isNotEmpty) {
-      return '$messages messages\n$dayName';
-    }
-    
-    return '$messages messages';
-  }
-
   Widget _buildTimeCard(
     BuildContext context,
-    String title,
-    String mainValue,
-    String subValue,
+    String label,
+    String value,
     IconData icon,
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
+          Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Text(
-            mainValue,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
+              color: color,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            subValue,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            label,
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyCard(BuildContext context, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
-          style: BorderStyle.solid,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title.isNotEmpty) ...[
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (subtitle.isNotEmpty) ...[
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
-              ),
-            ),
-          ],
-          if (title.isEmpty && subtitle.isEmpty)
-            const SizedBox(height: 60), // Match height of other cards
-        ],
-      ),
-    );
+  String _getPeakHour() {
+    if (timeData.containsKey('peakHour')) {
+      final peakHour = timeData['peakHour'];
+      if (peakHour is Map && peakHour.containsKey('timeRange')) {
+        return peakHour['timeRange'].toString();
+      }
+      return peakHour.toString();
+    }
+    return '10:00 AM';
+  }
+
+  String _getMostActiveDay() {
+    if (timeData.containsKey('mostActiveDay')) {
+      return timeData['mostActiveDay'].toString();
+    }
+    if (timeData.containsKey('peakDay')) {
+      return timeData['peakDay'].toString();
+    }
+    return 'Monday';
+  }
+
+  String _getTotalDays() {
+    if (timeData.containsKey('totalDays')) {
+      return timeData['totalDays'].toString();
+    }
+    if (timeData.containsKey('dayCount')) {
+      return timeData['dayCount'].toString();
+    }
+    return '30+';
+  }
+
+  String _getActivitySpan() {
+    if (timeData.containsKey('activitySpan')) {
+      return timeData['activitySpan'].toString();
+    }
+    if (timeData.containsKey('dateRange')) {
+      return timeData['dateRange'].toString();
+    }
+    return '1 Month';
   }
 }

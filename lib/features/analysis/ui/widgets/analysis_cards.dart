@@ -380,39 +380,125 @@ class ContentOverviewCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    debugPrint("🎨 ContentOverviewCards: Building with data keys: ${contentAnalysis.keys.join(', ')}");
+    debugPrint("🎨 ContentOverviewCards: Full data: $contentAnalysis");
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _buildContentCard(
-            context,
-            'Words',
-            contentAnalysis['totalWords']?.toString() ?? '0',
-            Icons.text_fields,
-            Colors.blue,
+        Text(
+          'Content Overview',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildContentCard(
-            context,
-            'Emojis',
-            contentAnalysis['totalEmojis']?.toString() ?? '0',
-            Icons.emoji_emotions,
-            Colors.yellow,
-          ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildContentCard(
+                context,
+                'Words',
+                _extractValue('totalWords'),
+                Icons.text_fields,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildContentCard(
+                context,
+                'Emojis',
+                _extractValue('totalEmojis'),
+                Icons.emoji_emotions,
+                Colors.yellow,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildContentCard(
+                context,
+                'Media',
+                _extractValue('totalMedia'),
+                Icons.image,
+                Colors.purple,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildContentCard(
-            context,
-            'Media',
-            contentAnalysis['totalMedia']?.toString() ?? '0',
-            Icons.image,
-            Colors.purple,
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildContentCard(
+                context,
+                'URLs',
+                _extractValue('totalUrls'),
+                Icons.link,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildContentCard(
+                context,
+                'Characters',
+                _extractValue('totalCharacters'),
+                Icons.keyboard,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Empty space to maintain alignment
+            const Expanded(child: SizedBox()),
+          ],
         ),
       ],
     );
+  }
+
+  /// Extract value with multiple fallback attempts
+  String _extractValue(String key) {
+    // Try direct key access first
+    if (contentAnalysis.containsKey(key)) {
+      final value = contentAnalysis[key];
+      if (value != null) {
+        return value.toString();
+      }
+    }
+    
+    // Try alternative key names
+    final alternativeKeys = _getAlternativeKeys(key);
+    for (final altKey in alternativeKeys) {
+      if (contentAnalysis.containsKey(altKey)) {
+        final value = contentAnalysis[altKey];
+        if (value != null) {
+          debugPrint("🔄 ContentOverviewCards: Using alternative key '$altKey' for '$key'");
+          return value.toString();
+        }
+      }
+    }
+    
+    debugPrint("⚠️ ContentOverviewCards: No value found for '$key', available keys: ${contentAnalysis.keys.join(', ')}");
+    return '0';
+  }
+  
+  /// Get alternative key names for a given key
+  List<String> _getAlternativeKeys(String key) {
+    switch (key) {
+      case 'totalWords':
+        return ['words', 'wordCount', 'total_words'];
+      case 'totalEmojis':
+        return ['emojis', 'emojiCount', 'total_emojis'];
+      case 'totalMedia':
+        return ['media', 'mediaCount', 'total_media'];
+      case 'totalUrls':
+        return ['urls', 'urlCount', 'total_urls', 'links', 'linkCount'];
+      case 'totalCharacters':
+        return ['characters', 'charCount', 'total_characters', 'chars'];
+      default:
+        return [];
+    }
   }
 
   Widget _buildContentCard(
@@ -433,6 +519,7 @@ class ContentOverviewCards extends StatelessWidget {
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
@@ -442,7 +529,7 @@ class ContentOverviewCards extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -460,7 +547,6 @@ class ContentOverviewCards extends StatelessWidget {
     );
   }
 }
-
 class UserDetailsList extends StatelessWidget {
   final List<dynamic> messagesByUser;
 
