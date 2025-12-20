@@ -4,105 +4,11 @@
 // ============================================================================
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
 import 'analysis_use_cases.dart';
-import 'analysis_models.dart';
-
-// ============================================================================
-// ANALYSIS EVENTS
-// ============================================================================
-abstract class AnalysisEvent extends Equatable {
-  const AnalysisEvent();
-
-  @override
-  List<Object?> get props => [];
-}
-
-class StartAnalysisEvent extends AnalysisEvent {
-  final String chatId;
-  final AnalysisConfig? config;
-
-  const StartAnalysisEvent(this.chatId, {this.config});
-
-  @override
-  List<Object?> get props => [chatId, config];
-}
-
-class RefreshAnalysisEvent extends AnalysisEvent {
-  final String chatId;
-
-  const RefreshAnalysisEvent(this.chatId);
-
-  @override
-  List<Object?> get props => [chatId];
-}
-
-class ClearAnalysisEvent extends AnalysisEvent {}
-
-class UpdateAnalysisConfigEvent extends AnalysisEvent {
-  final AnalysisConfig config;
-
-  const UpdateAnalysisConfigEvent(this.config);
-
-  @override
-  List<Object?> get props => [config];
-}
-
-// ============================================================================
-// ANALYSIS STATES
-// ============================================================================
-abstract class AnalysisState extends Equatable {
-  const AnalysisState();
-  
-  @override
-  List<Object?> get props => [];
-}
-
-class AnalysisInitial extends AnalysisState {}
-
-class AnalysisLoading extends AnalysisState {
-  final String message;
-  final double? progress;
-
-  const AnalysisLoading({
-    this.message = 'Analyzing chat...',
-    this.progress,
-  });
-
-  @override
-  List<Object?> get props => [message, progress];
-}
-
-class AnalysisSuccess extends AnalysisState {
-  final String chatId;
-  final ChatAnalysisResult result;
-  final DateTime completedAt;
-
-  const AnalysisSuccess({
-    required this.chatId,
-    required this.result,
-    required this.completedAt,
-  });
-
-  @override
-  List<Object?> get props => [chatId, result, completedAt];
-}
-
-class AnalysisError extends AnalysisState {
-  final String message;
-  final String? technicalDetails;
-  final bool canRetry;
-
-  const AnalysisError({
-    required this.message,
-    this.technicalDetails,
-    this.canRetry = true,
-  });
-
-  @override
-  List<Object?> get props => [message, technicalDetails, canRetry];
-}
+import 'analysis_repository.dart';
+import 'analysis_models.dart' show AnalysisEvent, AnalysisState, StartAnalysisEvent, RefreshAnalysisEvent, ClearAnalysisEvent, UpdateAnalysisConfigEvent, AnalysisInitial, AnalysisLoading, AnalysisSuccess, AnalysisError, AnalysisConfig, ChatAnalysisResult;
 
 // ============================================================================
 // ANALYSIS BLOC
@@ -113,6 +19,9 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
   // Current analysis tracking
   String? _currentChatId;
   StreamSubscription<double>? _progressSubscription;
+  
+  // Static set to track currently analyzing chat IDs across all bloc instances
+  static final Set<String> _analyzingChatIds = <String>{};
 
   AnalysisBloc({
     required AnalyzeChatUseCase analyzeChatUseCase,
@@ -135,10 +44,67 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
     StartAnalysisEvent event,
     Emitter<AnalysisState> emit,
   ) async {
+    // CRITICAL: Emit loading state IMMEDIATELY to prevent UI from blocking
+    // This must happen before any async operations so UI can update
+    emit(const AnalysisLoading(message: 'Loading analysis...'));
+    
+    // Yield control immediately to allow UI to render loading state
+    await Future.delayed(Duration.zero);
+    
+    // If we already have results for this chat in current state, use them
+    if (state is AnalysisSuccess && 
+        _currentChatId == event.chatId && 
+        event.config == null) {
+      debugPrint("ℹ️ Analysis already completed for chat: ${event.chatId}, use RefreshAnalysisEvent to re-analyze");
+      return; // State already has results, no need to change
+    }
+    
+    // Prevent duplicate analysis - use atomic check-and-set pattern
+    // Try to add chatId to set - if it already exists, analysis is in progress
+    final wasAlreadyAnalyzing = !_analyzingChatIds.add(event.chatId);
+    
+    if (wasAlreadyAnalyzing) {
+      debugPrint("⚠️ Analysis already in progress for chat: ${event.chatId}, checking for existing results...");
+      emit(const AnalysisLoading(message: 'Checking for existing results...'));
+      await Future.delayed(Duration.zero);
+      
+      // Try to load existing results from repository directly (don't trigger new analysis)
+      try {
+        final repository = GetIt.instance.get<AnalysisRepository>();
+        final existingResults = await repository.getAnalysisResults(event.chatId);
+        if (existingResults != null && existingResults.isNotEmpty) {
+          debugPrint("✅ Found existing results, loading them...");
+          emit(AnalysisSuccess(
+            chatId: event.chatId,
+            result: existingResults,
+            completedAt: DateTime.now(),
+          ));
+          _currentChatId = event.chatId;
+          return;
+        }
+      } catch (e) {
+        debugPrint("⚠️ Could not load existing results: $e");
+      }
+      // If no existing results, keep showing loading state
+      emit(const AnalysisLoading(message: 'Analysis in progress, please wait...'));
+      return;
+    }
+    
+    // Prevent duplicate analysis if already running in this bloc instance
+    if (_currentChatId == event.chatId && state is AnalysisLoading) {
+      debugPrint("⚠️ Analysis already in progress for chat: ${event.chatId}, ignoring duplicate request");
+      _analyzingChatIds.remove(event.chatId); // Remove since we're not starting
+      return; // Already showing loading state
+    }
+    
     debugPrint("🔍 Starting analysis for chat: ${event.chatId}");
     
     _currentChatId = event.chatId;
+    // chatId already added to _analyzingChatIds above
+    
+    // Update loading message before starting heavy work
     emit(const AnalysisLoading(message: 'Initializing analysis...'));
+    await Future.delayed(Duration.zero);
 
     try {
       // Start the analysis with progress tracking
@@ -149,7 +115,7 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
       debugPrint("Stack trace: $stackTrace");
       
       emit(AnalysisError(
-        message: _getUserFriendlyErrorMessage(e),
+        _getUserFriendlyErrorMessage(e),
         technicalDetails: e.toString(),
         canRetry: _canRetryError(e),
       ));
@@ -170,7 +136,7 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
       await _performAnalysis(event.chatId, null, emit, forceRefresh: true);
     } catch (e) {
       emit(AnalysisError(
-        message: _getUserFriendlyErrorMessage(e),
+        _getUserFriendlyErrorMessage(e),
         technicalDetails: e.toString(),
       ));
     }
@@ -217,27 +183,6 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
     final stopwatch = Stopwatch()..start();
     
     try {
-      // Update progress through different analysis phases
-      emit(const AnalysisLoading(
-        message: 'Loading chat data...',
-        progress: 0.1,
-      ));
-
-      emit(const AnalysisLoading(
-        message: 'Analyzing message patterns...',
-        progress: 0.3,
-      ));
-
-      emit(const AnalysisLoading(
-        message: 'Processing user behavior...',
-        progress: 0.5,
-      ));
-
-      emit(const AnalysisLoading(
-        message: 'Generating insights...',
-        progress: 0.7,
-      ));
-
       // Execute the analysis
       final result = await _analyzeChatUseCase.execute(
         chatId: chatId,
@@ -245,14 +190,11 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
         forceRefresh: forceRefresh,
       );
 
-      emit(const AnalysisLoading(
-        message: 'Finalizing results...',
-        progress: 0.9,
-      ));
-
       stopwatch.stop();
       debugPrint("✅ Analysis completed in ${stopwatch.elapsedMilliseconds}ms");
 
+      _analyzingChatIds.remove(chatId); // Remove from tracking set
+      
       emit(AnalysisSuccess(
         chatId: chatId,
         result: result,
@@ -262,6 +204,7 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
     } catch (e) {
       stopwatch.stop();
       debugPrint("❌ Analysis failed after ${stopwatch.elapsedMilliseconds}ms: $e");
+      _analyzingChatIds.remove(chatId); // Remove from tracking set on error
       rethrow;
     }
   }
@@ -330,6 +273,10 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
   @override
   Future<void> close() {
     _progressSubscription?.cancel();
+    // Clean up tracking if this bloc was analyzing
+    if (_currentChatId != null) {
+      _analyzingChatIds.remove(_currentChatId);
+    }
     return super.close();
   }
 }

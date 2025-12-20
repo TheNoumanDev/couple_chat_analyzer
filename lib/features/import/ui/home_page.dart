@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:intl/intl.dart';
 import '../../../widgets/common.dart';
 import '../../analysis/ui/analysis_page.dart';
+import '../../../shared/domain.dart' as domain;
 import '../import_bloc.dart';
 import '../import_models.dart';
 import 'import_page.dart';
@@ -96,6 +98,25 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHomeContent(BuildContext context) {
+    return FutureBuilder<List<domain.ChatEntity>>(
+      future: GetIt.instance.get<domain.ChatRepository>().getImportedChats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final chats = snapshot.data ?? [];
+        
+        if (chats.isEmpty) {
+          return _buildEmptyState(context);
+        }
+        
+        return _buildChatList(context, chats);
+      },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -196,6 +217,152 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Widget _buildChatList(BuildContext context, List<domain.ChatEntity> chats) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Your Chats (${chats.length})',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlocProvider.value(
+                        value: _importBloc,
+                        child: const ImportPage(),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Import New'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: chats.length,
+            itemBuilder: (context, index) {
+              final chat = chats[index];
+              return _buildChatCard(context, chat);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatCard(BuildContext context, domain.ChatEntity chat) {
+    final dateFormat = DateFormat('MMM dd, yyyy');
+    final messageCount = chat.messages.length;
+    final userCount = chat.users.length;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          child: Icon(
+            Icons.chat_bubble,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        title: Text(
+          chat.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text('$messageCount messages • $userCount participants'),
+            Text(
+              'Imported: ${dateFormat.format(chat.importDate)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        trailing: PopupMenuButton(
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              child: const Row(
+                children: [
+                  Icon(Icons.delete, size: 20),
+                  SizedBox(width: 8),
+                  Text('Delete'),
+                ],
+              ),
+              onTap: () async {
+                await Future.delayed(const Duration(milliseconds: 100));
+                await _deleteChat(context, chat.id);
+              },
+            ),
+          ],
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AnalysisPage(chatId: chat.id),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteChat(BuildContext context, String chatId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Chat'),
+        content: const Text('Are you sure you want to delete this chat? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await GetIt.instance.get<domain.ChatRepository>().deleteChat(chatId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chat deleted successfully')),
+          );
+          setState(() {}); // Refresh the list
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting chat: $e')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildFeaturesGrid(BuildContext context) {

@@ -13,14 +13,9 @@ class UserAnalyzer implements BasicAnalyzer {
     debugPrint("UserAnalyzer: Starting user analysis");
 
     // Filter out system messages
+    // Note: Don't filter by content keywords - messages are already validated during import
     final realUsers = chat.users.where((user) => user.id != "System").toList();
-    final realMessages = chat.messages
-        .where((msg) =>
-            msg.senderId != "System" &&
-            !msg.content.toLowerCase().contains('created group') &&
-            !msg.content.toLowerCase().contains('added') &&
-            !msg.content.toLowerCase().contains('left'))
-        .toList();
+    final realMessages = chat.messages.where((msg) => msg.senderId != "System").toList();
 
     if (realUsers.isEmpty || realMessages.isEmpty) {
       debugPrint("UserAnalyzer: No real users or messages found");

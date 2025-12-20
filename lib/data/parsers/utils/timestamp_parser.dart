@@ -113,13 +113,14 @@ class TimestampParser {
           
           // Validate the parsed message
           if (_isValidParsedMessage(parsed)) {
-            debugPrint("✅ Parsed with ${pattern.name}: ${parsed.senderName}");
             return parsed;
-          } else {
-            debugPrint("⚠️ Invalid parsed message from ${pattern.name}");
           }
-        } catch (e) {
+        } catch (e, stackTrace) {
           debugPrint("⚠️ Error parsing with ${pattern.name}: $e");
+          debugPrint("   Line preview: ${cleanLine.length > 150 ? cleanLine.substring(0, 150) + '...' : cleanLine}");
+          debugPrint("   Line length: ${cleanLine.length}");
+          debugPrint("   Stack trace: $stackTrace");
+          debugPrint("   ⚠️ This message format was not recognized - may need new pattern");
           continue;
         }
       }
@@ -252,7 +253,10 @@ class TimestampParser {
           final parsed = pattern.parser(match);
           results.add('   Sender: ${parsed.senderName}');
           results.add('   Time: ${parsed.timestamp}');
-          results.add('   Content: ${parsed.content.substring(0, 50)}...');
+          final contentPreview = parsed.content.length > 50 
+              ? '${parsed.content.substring(0, 50)}...' 
+              : parsed.content;
+          results.add('   Content: $contentPreview');
         } catch (e) {
           results.add('   ❌ Parse error: $e');
         }

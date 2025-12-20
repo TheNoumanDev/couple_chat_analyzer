@@ -84,6 +84,9 @@ abstract class ChatRepository {
 }
 
 // Analysis Repository Interface
+// DEPRECATED: Use features/analysis/analysis_repository.dart::AnalysisRepository instead
+// This interface is kept for backward compatibility but should not be used in new code
+@Deprecated('Use features/analysis/analysis_repository.dart::AnalysisRepository instead')
 abstract class AnalysisRepository {
   Future<Map<String, dynamic>?> getAnalysisResults(String chatId);
   Future<void> saveAnalysisResults(String chatId, Map<String, dynamic> results);

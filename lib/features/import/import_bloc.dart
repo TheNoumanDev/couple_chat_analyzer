@@ -37,10 +37,8 @@ class ImportBloc extends Bloc<ImportEvent, ImportState> {
       },
       onError: (error) {
         debugPrint("❌ Shared files stream error: $error");
-        emit(ImportError(
-          'Error receiving shared file',
-          technicalDetails: 'Please try sharing the file again',
-        ));
+        // Note: Cannot use emit() in stream callbacks, errors are logged only
+        // User can retry by sharing the file again
       },
     );
   }

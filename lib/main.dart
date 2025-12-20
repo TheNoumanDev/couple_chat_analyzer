@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'core/app.dart';
 import 'core/di.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Hive
-  await Hive.initFlutter();
-  
-  // Initialize dependencies
+  // Initialize dependencies (no Hive, using in-memory storage)
   await initDependencies();
   
   runApp(const ChatInsightApp());

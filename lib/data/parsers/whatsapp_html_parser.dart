@@ -4,7 +4,6 @@ import 'package:html/dom.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
 import '../../shared/models.dart';
-import '../../shared/domain.dart';
 import 'utils/encoding_detector.dart';
 import 'utils/timestamp_parser.dart';
 import 'utils/message_validator.dart';
@@ -21,12 +20,9 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
 
   @override
   Future<Chat> parse(File file) async {
-    debugPrint("🌐 Parsing WhatsApp HTML file: ${file.path}");
-
     try {
       // Try various encodings to read the file
       final content = await _encodingDetector.readWithBestEncoding(file);
-      debugPrint("📄 File successfully read with ${content.length} characters");
 
       final Document document = html_parser.parse(content);
 
@@ -52,8 +48,6 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
       // Sort messages by timestamp
       validationResult.validMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-      debugPrint("✅ HTML parsing complete: ${validationResult.validMessageCount} messages from ${validationResult.validUserCount} users");
-
       return Chat(
         id: _uuid.v4(),
         title: title,
@@ -75,8 +69,6 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
   }
 
   Future<void> _parseMessages(Document document, List<Message> messages, Map<String, User> userMap) async {
-    debugPrint("🔍 Parsing HTML messages with multiple strategies");
-
     // Strategy 1: Look for standard WhatsApp HTML export format
     await _tryStandardFormat(document, messages, userMap);
 
@@ -89,8 +81,6 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
     if (messages.isEmpty) {
       await _tryTextExtraction(document, messages, userMap);
     }
-
-    debugPrint("🔍 HTML parsing strategies completed. Found ${messages.length} messages");
   }
 
   Future<void> _tryStandardFormat(Document document, List<Message> messages, Map<String, User> userMap) async {
@@ -103,12 +93,16 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
       '.whatsapp-message',
     ];
 
+    int processedElements = 0;
     for (final selector in selectors) {
       final elements = document.querySelectorAll(selector);
       if (elements.isNotEmpty) {
-        debugPrint("📱 Found ${elements.length} messages using selector: $selector");
-        
         for (final element in elements) {
+          // Yield to UI every 50 elements to prevent blocking
+          if (processedElements % 50 == 0 && processedElements > 0) {
+            await Future.delayed(Duration.zero);
+          }
+          processedElements++;
           await _parseHtmlMessage(element, messages, userMap);
         }
         break; // Use the first successful selector
@@ -120,7 +114,14 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
     // Look for div or p elements that might contain messages
     final elements = document.querySelectorAll('div, p, li');
     
+    int processedElements = 0;
     for (final element in elements) {
+      // Yield to UI every 50 elements to prevent blocking
+      if (processedElements % 50 == 0 && processedElements > 0) {
+        await Future.delayed(Duration.zero);
+      }
+      processedElements++;
+      
       final text = element.text.trim();
       if (text.isNotEmpty && _looksLikeMessage(text)) {
         await _parseHtmlMessage(element, messages, userMap);
@@ -133,13 +134,18 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
     final allText = document.body?.text ?? '';
     final lines = allText.split('\n').where((line) => line.trim().isNotEmpty).toList();
     
-    debugPrint("📄 Extracted ${lines.length} text lines from HTML");
-    
     String? currentSender;
     DateTime? currentTimestamp;
     String currentContent = '';
 
+    int processedLines = 0;
     for (final line in lines) {
+      // Yield to UI every 100 lines to prevent blocking
+      if (processedLines % 100 == 0 && processedLines > 0) {
+        await Future.delayed(Duration.zero);
+      }
+      processedLines++;
+      
       final parsedMessage = _timestampParser.tryParseMessage(line);
       
       if (parsedMessage != null) {
@@ -188,8 +194,14 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
         parsedMessage.timestamp,
         parsedMessage.content,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint("⚠️ Error parsing HTML message element: $e");
+      final elementText = element.text.trim();
+      debugPrint("   Element text length: ${elementText.length}");
+      debugPrint("   Element text preview: ${elementText.length > 100 ? elementText.substring(0, 100) + '...' : elementText}");
+      debugPrint("   Element tag: ${element.localName}");
+      debugPrint("   Stack trace: $stackTrace");
+      debugPrint("   ⚠️ This HTML message structure was not processed - may need format handling");
     }
   }
 
@@ -222,8 +234,14 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
       if (_messageValidator.isValidMessage(message)) {
         messages.add(message);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint("❌ Error adding HTML message: $e");
+      debugPrint("   Sender: $senderName");
+      debugPrint("   Timestamp: $timestamp");
+      debugPrint("   Content length: ${content.length}");
+      debugPrint("   Content preview: ${content.length > 100 ? content.substring(0, 100) + '...' : content}");
+      debugPrint("   Stack trace: $stackTrace");
+      debugPrint("   ⚠️ This message structure was not processed - may need format handling");
     }
   }
 
@@ -248,7 +266,6 @@ class WhatsAppHtmlParserImpl implements WhatsAppHtmlParser {
       name: cleanUserName,
     );
 
-    debugPrint("👤 Created HTML user: '$cleanUserName' with ID: $userId");
     return userId;
   }
 }

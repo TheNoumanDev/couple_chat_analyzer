@@ -4,7 +4,6 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
-import '../widgets/analysis_cards.dart';
 import '../widgets/user_statistics_widget.dart';
 
 class UsersTab extends StatelessWidget {
@@ -597,9 +596,13 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
                 // Emoji stats row
                 Row(
                   children: [
-                    _buildEmojiStat(context, 'Total Emojis', emojiCount.toString(), Icons.emoji_emotions),
+                    Expanded(
+                      child: _buildEmojiStat(context, 'Total Emojis', emojiCount.toString(), Icons.emoji_emotions),
+                    ),
                     const SizedBox(width: 20),
-                    _buildEmojiStat(context, 'Per Message', emojiRate.toStringAsFixed(1), Icons.trending_up),
+                    Expanded(
+                      child: _buildEmojiStat(context, 'Per Message', emojiRate.toStringAsFixed(1), Icons.trending_up),
+                    ),
                   ],
                 ),
               ],

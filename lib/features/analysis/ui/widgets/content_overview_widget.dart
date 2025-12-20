@@ -113,7 +113,7 @@ class ContentIntelligenceWidget extends StatelessWidget {
           final complexityScore = vocab['complexityScore'] as int? ?? 0;
           final vocabularyType = vocab['vocabularyType'] as String? ?? 'Average';
           final uniqueWords = vocab['uniqueWords'] as int? ?? 0;
-          final totalWords = vocab['totalWords'] as int? ?? 0;
+          // Removed unused variable: totalWords
 
           // Determine color based on complexity score
           Color scoreColor;

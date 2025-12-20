@@ -1,20 +1,23 @@
-import 'package:chatreport/features/reports/reports_models.dart' as models;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import 'reports_bloc.dart';
+import 'reports_models.dart' as models;
 
 class ReportGenerationDialog extends StatelessWidget {
   const ReportGenerationDialog({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<ReportsBloc, ReportsState>(
+    return BlocListener<ReportsBloc, models.ReportsState>(
       listener: (context, state) {
-        if (state is models.ReportsSuccess) {
+        if (state is models.ReportGenerated) {
           Navigator.of(context).pop();
-          _showReportGeneratedDialog(context, (state as models.ReportsSuccess).reportFile.path);
-        } else if (state is ReportsError) {
+          _showReportGeneratedDialog(context, state.reportFile.path);
+        } else if (state is models.ReportsSuccess) {
+          Navigator.of(context).pop();
+          _showReportGeneratedDialog(context, state.reportFile.path);
+        } else if (state is models.ReportsError) {
           Navigator.of(context).pop();
           _showErrorDialog(context, state.message);
         }
@@ -24,9 +27,9 @@ class ReportGenerationDialog extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            BlocBuilder<ReportsBloc, ReportsState>(
+            BlocBuilder<ReportsBloc, models.ReportsState>(
               builder: (context, state) {
-                if (state is ReportsLoading) {
+                if (state is models.ReportsLoading) {
                   return const CircularProgressIndicator();
                 }
                 return const CircularProgressIndicator();
@@ -268,8 +271,8 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
               children: [
                 Expanded(
                   child: RadioListTile<models.ReportFormat>(
-                    title: Text('PDF'),
-                    subtitle: Text('Recommended'),
+                    title: const Text('PDF'),
+                    subtitle: const Text('Recommended'),
                     value: models.ReportFormat.pdf,
                     groupValue: selectedFormat,
                     onChanged: (value) => setState(() => selectedFormat = value!),
@@ -278,8 +281,8 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
                 ),
                 Expanded(
                   child: RadioListTile<models.ReportFormat>(
-                    title: Text('HTML'),
-                    subtitle: Text('Web page'),
+                    title: const Text('HTML'),
+                    subtitle: const Text('Web page'),
                     value: models.ReportFormat.html,
                     groupValue: selectedFormat,
                     onChanged: (value) => setState(() => selectedFormat = value!),

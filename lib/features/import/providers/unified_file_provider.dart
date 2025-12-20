@@ -3,11 +3,9 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import '../../../core/app.dart';
 
 abstract class FileProvider {
   Future<File?> pickFile();
@@ -198,12 +196,13 @@ class UnifiedFileProvider implements FileProvider {
 
   Future<void> _processSharedFile(SharedMediaFile sharedFile) async {
     try {
-      if (sharedFile.path == null) {
-        debugPrint("⚠️ Shared file path is null");
+      final filePath = sharedFile.path;
+      if (filePath.isEmpty) {
+        debugPrint("⚠️ Shared file path is empty");
         return;
       }
 
-      final file = File(sharedFile.path!);
+      final file = File(filePath);
 
       if (!await file.exists()) {
         debugPrint("⚠️ Shared file does not exist: ${sharedFile.path}");

@@ -80,17 +80,17 @@ class AnalysisLoading extends AnalysisState {
 
 class AnalysisSuccess extends AnalysisState {
   final String chatId;
-  final Map<String, dynamic> results;
   final ChatAnalysisResult result;
   final DateTime completedAt;
 
-  const AnalysisSuccess(this.chatId, this.results, {
+  const AnalysisSuccess({
+    required this.chatId,
     required this.result,
     required this.completedAt,
   });
 
   @override
-  List<Object?> get props => [chatId, results, result, completedAt];
+  List<Object?> get props => [chatId, result, completedAt];
 }
 
 class AnalysisError extends AnalysisState {

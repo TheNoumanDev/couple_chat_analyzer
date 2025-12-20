@@ -5,7 +5,6 @@
 import 'dart:io';
 // Removed unused import: import 'package:chatreport/shared/models.dart' as shared_models;
 import 'package:flutter/foundation.dart';
-import '../../shared/domain.dart';
 import '../../data/local.dart';
 import 'analysis_models.dart' as analysis_models;
 
@@ -88,12 +87,11 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
     try {
       debugPrint("📋 Getting list of analyzed chat IDs");
       
-      // This would need to be implemented in the local data source
-      // For now, we'll return an empty list
-      // TODO: Implement getAnalyzedChatIds in ChatLocalDataSource
+      // Use the local data source implementation
+      final chatIds = await _localDataSource.getAnalyzedChatIds();
       
-      debugPrint("📋 Retrieved 0 analyzed chat IDs"); // Placeholder
-      return [];
+      debugPrint("📋 Retrieved ${chatIds.length} analyzed chat IDs");
+      return chatIds;
       
     } catch (e, stackTrace) {
       debugPrint("❌ Error getting analyzed chat IDs: $e");
@@ -199,7 +197,6 @@ class AnalysisRepositoryImpl implements AnalysisRepository {
   }
 
   /// Update specific analysis result (for incremental updates)
-  @override
   Future<void> updateAnalysisResult(String chatId, String analyzerType, analysis_models.AnalysisResult result) async {
     try {
       debugPrint("🔄 Updating analysis result for $analyzerType in chat: $chatId");

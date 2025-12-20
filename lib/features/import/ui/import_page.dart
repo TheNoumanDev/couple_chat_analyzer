@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../widgets/common.dart';
-import '../../analysis/ui/analysis_page.dart';
 import '../import_bloc.dart';
 import '../import_models.dart';
 
@@ -19,22 +18,11 @@ class ImportPage extends StatelessWidget {
       body: BlocConsumer<ImportBloc, ImportState>(
         listener: (context, state) async {
           if (state is ImportSuccess) {
-            try {
-              debugPrint("Import page received ImportSuccess state with chat ID: ${state.chat.id}");
-              debugPrint("Chat has ${state.chat.messages.length} messages and ${state.chat.users.length} users");
-              
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) {
-                    debugPrint("Building AnalysisPage route with chatId: ${state.chat.id}");
-                    return AnalysisPage(chatId: state.chat.id);
-                  },
-                ),
-              );
-              debugPrint("Navigation to AnalysisPage completed");
-            } catch (e) {
-              debugPrint("ERROR during navigation: $e");
-            }
+            debugPrint("Import page received ImportSuccess state with chat ID: ${state.chat.id}");
+            debugPrint("Chat has ${state.chat.messages.length} messages and ${state.chat.users.length} users");
+            debugPrint("Navigation will be handled by home page (via pushAndRemoveUntil)");
+            // Navigation is handled by home_page.dart BlocListener
+            // which uses pushAndRemoveUntil to ensure clean navigation
           }
         },
         builder: (context, state) {

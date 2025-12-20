@@ -7,15 +7,14 @@ class MessageValidator {
   static const int minMessageLength = 0; // Allow empty messages for media
   static const int maxSenderNameLength = 100;
 
-  // System message patterns to filter out
+  // System message patterns to filter out - using specific patterns only
+  // These should match actual WhatsApp system messages, not user messages
+  // Avoid single words like "left" or "added" that appear in normal conversation
   static const List<String> systemMessagePatterns = [
     'created group',
-    'added',
-    'left',
     'changed the subject',
     'security code changed',
     'joined using',
-    'removed ',
     'changed this group',
     'messages and calls are end-to-end encrypted',
     'missed voice call',
@@ -34,12 +33,20 @@ class MessageValidator {
     'this message was deleted',
     'message deleted',
     'you deleted this message',
-    'this message was deleted',
     'calling...',
     'call ended',
     'no answer',
     'busy',
     'unavailable',
+  ];
+  
+  // Patterns that need word boundary checking (common words that appear in system messages)
+  static const List<String> systemMessageWordPatterns = [
+    'left the group',
+    'left this group',
+    'added you',
+    'removed you',
+    'removed from',
   ];
 
   bool isValidMessage(Message message) {
@@ -65,13 +72,20 @@ class MessageValidator {
 
       // Filter out system messages (but allow them if explicitly marked as system)
       if (message.senderId != "System" && _isSystemMessage(message.content)) {
-        debugPrint("🔧 Filtering system message: ${message.content.substring(0, 30)}...");
         return false;
       }
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint("❌ Error validating message: $e");
+      debugPrint("   Message ID: ${message.id}");
+      debugPrint("   Sender ID: ${message.senderId}");
+      debugPrint("   Timestamp: ${message.timestamp}");
+      debugPrint("   Content length: ${message.content.length}");
+      debugPrint("   Content preview: ${message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}");
+      debugPrint("   Message type: ${message.type}");
+      debugPrint("   Stack trace: $stackTrace");
+      debugPrint("   ⚠️ This message structure failed validation - may need format handling");
       return false;
     }
   }
@@ -87,18 +101,12 @@ class MessageValidator {
   bool _isSystemMessage(String content) {
     final lowerContent = content.toLowerCase().trim();
     
-    // Check against known system message patterns
-    for (final pattern in systemMessagePatterns) {
-      if (lowerContent.contains(pattern.toLowerCase())) {
-        return true;
-      }
-    }
-
     // Additional checks for system-like messages
     if (lowerContent.isEmpty) return true;
     
-    // Messages that are just timestamps or metadata
-    if (RegExp(r'^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}').hasMatch(lowerContent)) {
+    // Messages that are just timestamps or metadata (standalone dates)
+    // Only match if the entire message is just a date
+    if (RegExp(r'^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\s*$').hasMatch(lowerContent)) {
       return true;
     }
 
@@ -109,8 +117,23 @@ class MessageValidator {
       return true;
     }
 
+    // Check against known system message patterns (multi-word, specific patterns)
+    for (final pattern in systemMessagePatterns) {
+      if (lowerContent.contains(pattern.toLowerCase())) {
+        return true;
+      }
+    }
+    
+    // Check word-based patterns (need to match exact phrases)
+    for (final pattern in systemMessageWordPatterns) {
+      if (lowerContent.contains(pattern.toLowerCase())) {
+        return true;
+      }
+    }
+
     return false;
   }
+
 
   bool isValidUser(User user) {
     if (user.id.isEmpty || user.name.isEmpty) {

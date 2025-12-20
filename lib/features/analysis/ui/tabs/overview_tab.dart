@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/analysis_cards.dart';
-import '../widgets/analysis_charts.dart';
 
-class OverviewTab extends StatelessWidget {
+class OverviewTab extends StatefulWidget {
   final Map<String, dynamic> results;
 
   const OverviewTab({
@@ -11,11 +10,21 @@ class OverviewTab extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends State<OverviewTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // Keep tab alive to prevent rebuilds
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
     // Use safe conversion methods instead of direct casting
-    final summary = _convertToStringMap(results['summary']) ?? {};
-    final timeAnalysis = _extractTimeAnalysis(results);
-    final messagesByUser = results['messagesByUser'] as List<dynamic>? ?? [];
+    final summary = _convertToStringMap(widget.results['summary']) ?? {};
+    final timeAnalysis = _extractTimeAnalysis(widget.results);
+    final messagesByUser = widget.results['messagesByUser'] as List<dynamic>? ?? [];
     
     debugPrint("📊 OverviewTab: summary keys: ${summary.keys.join(', ')}");
     debugPrint("📊 OverviewTab: timeAnalysis keys: ${timeAnalysis.keys.join(', ')}");
@@ -49,8 +58,8 @@ class OverviewTab extends StatelessWidget {
           const SizedBox(height: 24),
           
           // Conversation Health (enhanced)
-          if (results.containsKey('conversationDynamics'))
-            _buildEnhancedHealthCard(context, _convertToStringMap(results['conversationDynamics']) ?? {}),
+          if (widget.results.containsKey('conversationDynamics'))
+            _buildEnhancedHealthCard(context, _convertToStringMap(widget.results['conversationDynamics']) ?? {}),
           
           const SizedBox(height: 80), // Space for FAB
         ],
@@ -59,8 +68,8 @@ class OverviewTab extends StatelessWidget {
   }
 
   Widget _buildKeyMetricsCards(BuildContext context) {
-    final summary = _convertToStringMap(results['summary']) ?? {};
-    final totalWords = _extractTotalWords(results);
+    final summary = _convertToStringMap(widget.results['summary']) ?? {};
+    final totalWords = _extractTotalWords(widget.results);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,11 +332,15 @@ Widget _buildActivityOverviewCards(BuildContext context, Map<String, dynamic> ti
             children: [
               Icon(icon, color: color, size: 20),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: color,
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -620,16 +633,7 @@ String _formatPeakDate(Map<String, dynamic> peakDate) {
   return 'Not Available';
 }
 
-  String _formatPeakDateDetails(Map<String, dynamic> peakDate) {
-    final messages = peakDate['messages'] as int? ?? 0;
-    final dayName = peakDate['dayName'] as String?;
-    
-    if (dayName != null && dayName.isNotEmpty) {
-      return '$messages messages\n$dayName';
-    }
-    
-    return '$messages messages';
-  }
+  // Removed unused method: _formatPeakDateDetails
 
   Color _getHealthColor(int score) {
     if (score >= 80) return Colors.green;

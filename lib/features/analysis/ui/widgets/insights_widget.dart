@@ -236,7 +236,7 @@ class ConversationDynamicsWidget extends StatelessWidget {
   Widget _buildInitiationPatterns(BuildContext context, Map<String, dynamic> initiationPatterns) {
     // Use safe conversion for nested maps
     final initiators = SafeTypeConverter.convertToStringMap(initiationPatterns['initiators']);
-    final enders = SafeTypeConverter.convertToStringMap(initiationPatterns['enders']);
+    // Removed unused variable: enders
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

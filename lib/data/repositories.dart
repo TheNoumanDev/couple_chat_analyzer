@@ -4,7 +4,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import '../shared/domain.dart';
-import '../shared/models.dart';
 import '../core/utils.dart';
 import 'local.dart';
 import 'parsers/chat_parser.dart';

@@ -8,7 +8,6 @@ import 'package:chatreport/features/analysis/analysis_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../shared/domain.dart';
 import '../analysis/analysis_repository.dart' as analysis_repo;
 import 'reports_models.dart';
 

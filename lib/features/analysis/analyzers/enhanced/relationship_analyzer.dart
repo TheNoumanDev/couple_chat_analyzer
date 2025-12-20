@@ -165,7 +165,6 @@ class RelationshipAnalyzer implements BaseAnalyzer {
     Map<String, String> userIdToName,
   ) {
     int positiveMessages = 0;
-    int negativeMessages = 0;
     int totalAnalyzed = 0;
 
     final positiveWords = ['love', 'happy', 'great', 'awesome', 'good', 'nice', 'thanks', 'lol', 'haha'];
@@ -180,14 +179,14 @@ class RelationshipAnalyzer implements BaseAnalyzer {
         totalAnalyzed++;
         if (hasPositive && !hasNegative) {
           positiveMessages++;
-        } else if (hasNegative && !hasPositive) {
-          negativeMessages++;
         }
+        // Note: negativeMessages was tracked but not used in calculation
       }
     }
 
     if (totalAnalyzed == 0) return 50.0; // Neutral if no emotional indicators
 
+    // Calculate positivity rate (negativeMessages tracked but not used in current calculation)
     final positivityRate = positiveMessages / totalAnalyzed;
     return (positivityRate * 100).clamp(0.0, 100.0);
   }

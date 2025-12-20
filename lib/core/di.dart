@@ -16,10 +16,8 @@ import '../data/repositories.dart';
 import '../shared/domain.dart' as domain;
 
 // Analysis feature imports - using prefix to avoid conflicts
-import '../features/analysis/analysis_models.dart';
 import '../features/analysis/analysis_repository.dart' as analysis_repo;
 import '../features/analysis/analysis_use_cases.dart';
-import '../features/analysis/analyzers/base_analyzer.dart';
 import '../features/analysis/analyzers/message_analyzer.dart';
 import '../features/analysis/analyzers/time_analyzer.dart';
 import '../features/analysis/analyzers/user_analyzer.dart';
@@ -31,12 +29,10 @@ import '../features/analysis/analyzers/enhanced/content_intelligence_analyzer.da
 import '../features/analysis/analyzers/enhanced/temporal_insight_analyzer.dart';
 
 // Import feature imports
-import '../features/import/import_models.dart';
 import '../features/import/import_use_cases.dart';
 import '../features/import/providers/unified_file_provider.dart';
 
 // Reports feature imports
-import '../features/reports/reports_models.dart';
 import '../features/reports/reports_use_cases.dart';
 
 final getIt = GetIt.instance;
@@ -49,9 +45,8 @@ Future<void> initDependencies() async {
     // DATA LAYER
     // ========================================================================
     
-    // Initialize local data source first
+    // Initialize local data source (in-memory, no database)
     final chatLocalDataSource = ChatLocalDataSourceImpl();
-    await chatLocalDataSource.initDatabase();
     getIt.registerLazySingleton<ChatLocalDataSource>(() => chatLocalDataSource);
 
     // File providers - Fix: use init() instead of initialize()

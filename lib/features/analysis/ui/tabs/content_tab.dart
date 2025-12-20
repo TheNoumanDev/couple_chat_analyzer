@@ -6,7 +6,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/analysis_cards.dart';
 import '../widgets/analysis_charts.dart';
-import '../widgets/content_overview_widget.dart';
 
 class ContentTab extends StatelessWidget {
   final Map<String, dynamic> results;
@@ -342,121 +341,8 @@ class ContentTab extends StatelessWidget {
     return 'Not Available';
   }
 
-  /// NEW: Build Daily Activity section
-  Widget _buildDailyActivitySection(
-      BuildContext context, Map<String, dynamic> timeAnalysis) {
-    debugPrint(
-        "📅 Building daily activity with keys: ${timeAnalysis.keys.join(', ')}");
-
-    if (timeAnalysis.containsKey('weeklyActivity')) {
-      final weeklyData = timeAnalysis['weeklyActivity'];
-      debugPrint("📅 Found weeklyActivity data: $weeklyData");
-      return _buildDayOfWeekChart(context, weeklyData);
-    }
-
-    if (timeAnalysis.containsKey('dayOfWeek')) {
-      return _buildDayOfWeekChart(context, timeAnalysis['dayOfWeek']);
-    }
-
-    return _buildMissingDataCard(
-      context,
-      'Daily Activity Pattern',
-      'Daily communication patterns will be shown here when more time analysis data is available.',
-      Icons.calendar_view_week,
-      Colors.green,
-    );
-  }
-
-  /// FIXED: Monthly Activity section
-  Widget _buildMonthlyPatternsSection(
-      BuildContext context, Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.containsKey('monthlyActivity')) {
-      final monthlyData = timeAnalysis['monthlyActivity'];
-      debugPrint("📆 Found monthlyActivity data: $monthlyData");
-      return _buildMonthlyChart(
-          context, monthlyData); // Pass raw data, let the chart handle type
-    }
-
-    return _buildMissingDataCard(
-      context,
-      'Monthly Communication Trends',
-      'Monthly activity patterns will be displayed here when sufficient historical data is available.',
-      Icons.calendar_month,
-      Colors.indigo,
-    );
-  }
-
-  /// NEW: Build Hourly Heatmap section
-  Widget _buildHourlyHeatmapSection(
-      BuildContext context, Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.containsKey('hourlyActivity')) {
-      final hourlyData = timeAnalysis['hourlyActivity'];
-      debugPrint("⏰ Found hourlyActivity data: $hourlyData");
-      return _buildHourlyHeatmap(context, hourlyData);
-    }
-
-    return _buildMissingDataCard(
-      context,
-      'Hourly Activity Heatmap',
-      '24-hour activity patterns will be visualized here when hourly data becomes available.',
-      Icons.grid_view,
-      Colors.red,
-    );
-  }
-
-  /// NEW: Build Communication Patterns section
-  Widget _buildCommunicationPatternsSection(
-    BuildContext context,
-    Map<String, dynamic> contentAnalysis,
-    Map<String, dynamic> timeAnalysis,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.forum, color: Colors.purple),
-                const SizedBox(width: 8),
-                Text(
-                  'Communication Insights',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInsightItem(
-              context,
-              'Message Frequency',
-              _getMessageFrequencyInsight(contentAnalysis),
-              Icons.speed,
-              Colors.blue,
-            ),
-            const SizedBox(height: 12),
-            _buildInsightItem(
-              context,
-              'Communication Style',
-              _getCommunicationStyleInsight(contentAnalysis),
-              Icons.chat_bubble_outline,
-              Colors.green,
-            ),
-            const SizedBox(height: 12),
-            _buildInsightItem(
-              context,
-              'Activity Pattern',
-              _getActivityPatternInsight(timeAnalysis),
-              Icons.timeline,
-              Colors.orange,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Removed unused methods: _buildDailyActivitySection, _buildMonthlyPatternsSection, 
+  // _buildHourlyHeatmapSection, _buildCommunicationPatternsSection
 
   /// Helper: Build peak activity card
   Widget _buildPeakCard(
@@ -1351,19 +1237,9 @@ class ContentTab extends StatelessWidget {
     if (timeAnalysis.containsKey('peakHour')) {
       final peakHour = timeAnalysis['peakHour'];
       if (peakHour is Map) {
-        return (peakHour as Map)['timeRange']?.toString() ?? 'Not Available';
+        return peakHour['timeRange']?.toString() ?? 'Not Available';
       }
       return peakHour.toString();
-    }
-    return 'Not Available';
-  }
-
-  String _extractPeakDay(Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.containsKey('peakDay')) {
-      return timeAnalysis['peakDay'].toString();
-    }
-    if (timeAnalysis.containsKey('mostActiveDay')) {
-      return timeAnalysis['mostActiveDay'].toString();
     }
     return 'Not Available';
   }
@@ -1391,52 +1267,7 @@ class ContentTab extends StatelessWidget {
     return 'All Day\nActive';
   }
 
-  String _extractQuietTime(Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.containsKey('quietestHour')) {
-      return timeAnalysis['quietestHour'].toString();
-    }
-    return 'Late Night';
-  }
-
-  Map<String, int> _extractDayOfWeekData(Map<String, dynamic> timeAnalysis) {
-    if (timeAnalysis.containsKey('dayOfWeek')) {
-      final dayData = _convertToStringMap(timeAnalysis['dayOfWeek']);
-      if (dayData != null) {
-        return Map<String, int>.from(dayData);
-      }
-    }
-
-    // Default data
-    return {
-      'Mon': 45,
-      'Tue': 52,
-      'Wed': 38,
-      'Thu': 41,
-      'Fri': 35,
-      'Sat': 28,
-      'Sun': 32,
-    };
-  }
-
-  double _getHourIntensity(Map<String, dynamic> timeAnalysis, int hour) {
-    if (timeAnalysis.containsKey('hourlyActivity')) {
-      final hourlyData = timeAnalysis['hourlyActivity'];
-      if (hourlyData is Map) {
-        final count = (hourlyData as Map)[hour.toString()] ?? 0;
-        final maxCount = (hourlyData as Map)
-            .values
-            .fold(0, (max, val) => val > max ? val : max);
-        return maxCount > 0 ? (count / maxCount) : 0.0;
-      }
-    }
-
-    // Generate mock intensity based on typical patterns
-    if (hour >= 9 && hour <= 11) return 0.8; // Morning peak
-    if (hour >= 14 && hour <= 16) return 0.6; // Afternoon
-    if (hour >= 19 && hour <= 21) return 0.9; // Evening peak
-    if (hour >= 22 || hour <= 6) return 0.2; // Night
-    return 0.4; // Default
-  }
+  // Removed unused methods: _extractPeakDay, _extractQuietTime, _extractDayOfWeekData, _getHourIntensity
 
   // === INSIGHT GENERATORS ===
 

@@ -243,7 +243,7 @@ class BehaviorPatternAnalyzer implements EnhancedAnalyzer {
       // Analyze weekend vs weekday behavior
       final dayActivity = userDayActivity[userName] ?? {};
       final weekendMessages = (dayActivity[6] ?? 0) + (dayActivity[7] ?? 0);
-      final weekdayMessages = totalMessages - weekendMessages;
+      // Removed unused variable: weekdayMessages
       final weekendPercentage = totalMessages > 0 ? (weekendMessages / totalMessages) * 100 : 0.0;
 
       timePersonalities[userName] = {
