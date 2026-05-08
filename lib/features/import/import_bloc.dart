@@ -125,10 +125,19 @@ class ImportBloc extends Bloc<ImportEvent, ImportState> {
       emit(ImportSuccess(chat));
     } catch (e, stackTrace) {
       debugPrint("❌ Import failed: $e");
-      debugPrint("Stack trace: $stackTrace");
+      // Only log stack trace in debug mode to avoid exposing internals
+      assert(() {
+        debugPrint("Stack trace: $stackTrace");
+        return true;
+      }());
 
       String userMessage;
-      String technicalDetails = e.toString();
+      // Only include technical details in debug builds
+      String? technicalDetails;
+      assert(() {
+        technicalDetails = e.toString();
+        return true;
+      }());
 
       if (e.toString().contains('File validation failed')) {
         userMessage =

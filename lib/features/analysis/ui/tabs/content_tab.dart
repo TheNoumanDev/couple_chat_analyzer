@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import '../widgets/analysis_cards.dart';
 import '../widgets/analysis_charts.dart';
 
-class ContentTab extends StatelessWidget {
+class ContentTab extends StatefulWidget {
   final Map<String, dynamic> results;
 
   const ContentTab({
@@ -16,14 +16,41 @@ class ContentTab extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final contentAnalysis = _extractContentAnalysis(results);
-    final timeAnalysis = _extractTimeAnalysis(results);
+  State<ContentTab> createState() => _ContentTabState();
+}
 
-    debugPrint(
-        "🎯 ContentTab: contentAnalysis keys: ${contentAnalysis.keys.join(', ')}");
-    debugPrint(
-        "🎯 ContentTab: timeAnalysis keys: ${timeAnalysis.keys.join(', ')}");
+class _ContentTabState extends State<ContentTab>
+    with AutomaticKeepAliveClientMixin {
+  // Cached extracted data to avoid re-extraction on every build
+  late Map<String, dynamic> _contentAnalysis;
+  late Map<String, dynamic> _timeAnalysis;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _extractData();
+  }
+
+  @override
+  void didUpdateWidget(ContentTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only re-extract if results changed
+    if (oldWidget.results != widget.results) {
+      _extractData();
+    }
+  }
+
+  void _extractData() {
+    _contentAnalysis = _extractContentAnalysis(widget.results);
+    _timeAnalysis = _extractTimeAnalysis(widget.results);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -31,28 +58,28 @@ class ContentTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 📊 Content Overview Cards (Always show)
-          ContentOverviewCards(contentAnalysis: contentAnalysis),
+          ContentOverviewCards(contentAnalysis: _contentAnalysis),
 
           const SizedBox(height: 24),
 
           // 😀 Top Emojis Chart
-          _buildTopEmojisSection(context, contentAnalysis),
+          _buildTopEmojisSection(context, _contentAnalysis),
 
           const SizedBox(height: 24),
 
           // 📝 Message Length Distribution
-          _buildMessageLengthSection(context, contentAnalysis),
+          _buildMessageLengthSection(context, _contentAnalysis),
 
           const SizedBox(height: 24),
 
           // 📅 Peak Activity Times
-          _buildPeakActivitySection(context, timeAnalysis),
+          _buildPeakActivitySection(context, _timeAnalysis),
 
           const SizedBox(height: 24),
 
           // 📈 Daily Activity Chart - FIXED to handle List data
-          if (timeAnalysis.containsKey('weeklyActivity'))
-            _buildDayOfWeekChart(context, timeAnalysis['weeklyActivity'])
+          if (_timeAnalysis.containsKey('weeklyActivity'))
+            _buildDayOfWeekChart(context, _timeAnalysis['weeklyActivity'])
           else
             _buildMissingDataCard(
               context,
@@ -65,8 +92,8 @@ class ContentTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 🗓️ Monthly Patterns - FIXED to handle List data
-          if (timeAnalysis.containsKey('monthlyActivity'))
-            _buildMonthlyChart(context, timeAnalysis['monthlyActivity'])
+          if (_timeAnalysis.containsKey('monthlyActivity'))
+            _buildMonthlyChart(context, _timeAnalysis['monthlyActivity'])
           else
             _buildMissingDataCard(
               context,
@@ -79,8 +106,8 @@ class ContentTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ⏰ Hourly Heatmap - FIXED to handle Map data
-          if (timeAnalysis.containsKey('hourlyActivity'))
-            _buildHourlyHeatmap(context, timeAnalysis['hourlyActivity'])
+          if (_timeAnalysis.containsKey('hourlyActivity'))
+            _buildHourlyHeatmap(context, _timeAnalysis['hourlyActivity'])
           else
             _buildMissingDataCard(
               context,
@@ -93,18 +120,18 @@ class ContentTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 🔗 Most Shared Domains
-          _buildSharedDomainsSection(context, contentAnalysis),
+          _buildSharedDomainsSection(context, _contentAnalysis),
 
           const SizedBox(height: 24),
 
           // 📊 Content Statistics
-          _buildContentStatisticsSection(context, contentAnalysis),
+          _buildContentStatisticsSection(context, _contentAnalysis),
 
           const SizedBox(height: 24),
 
           // 💬 Communication Insights
           _buildCommunicationInsightsSection(
-              context, contentAnalysis, timeAnalysis),
+              context, _contentAnalysis, _timeAnalysis),
 
           const SizedBox(height: 80), // Space for FAB
         ],
@@ -1151,15 +1178,10 @@ class ContentTab extends StatelessWidget {
 
   /// Extract time analysis data
   Map<String, dynamic> _extractTimeAnalysis(Map<String, dynamic> results) {
-    debugPrint(
-        "⏰ ContentTab: Extracting time analysis from keys: ${results.keys.join(', ')}");
-
-    // PRIORITY 1: Check direct timeAnalysis key (this is where your data actually is)
+    // PRIORITY 1: Check direct timeAnalysis key
     if (results.containsKey('timeAnalysis')) {
       final timeData = _convertToStringMap(results['timeAnalysis']);
       if (timeData != null && timeData.isNotEmpty) {
-        debugPrint(
-            "✅ Found timeAnalysis directly with keys: ${timeData.keys.join(', ')}");
         return timeData;
       }
     }
@@ -1171,7 +1193,6 @@ class ContentTab extends StatelessWidget {
         if (timeContainer.containsKey('timeAnalysis')) {
           final timeData = _convertToStringMap(timeContainer['timeAnalysis']);
           if (timeData != null && timeData.isNotEmpty) {
-            debugPrint("✅ Found timeAnalysis nested in time container");
             return timeData;
           }
         }
@@ -1179,30 +1200,25 @@ class ContentTab extends StatelessWidget {
         // Check if time container has direct time fields
         if (timeContainer.containsKey('peakHour') ||
             timeContainer.containsKey('hourlyActivity')) {
-          debugPrint("✅ Found time data directly in time container");
           return timeContainer;
         }
       }
     }
 
-    // PRIORITY 3: Check temporalInsights (your debug shows this exists)
+    // PRIORITY 3: Check temporalInsights
     if (results.containsKey('temporalInsights')) {
       final temporalData = _convertToStringMap(results['temporalInsights']);
-      debugPrint(
-          "📊 TemporalInsights found with keys: ${temporalData?.keys.join(', ')}");
 
       if (temporalData != null &&
           temporalData.containsKey('temporalInsights')) {
         final nestedTemporal =
             _convertToStringMap(temporalData['temporalInsights']);
         if (nestedTemporal != null && nestedTemporal.isNotEmpty) {
-          debugPrint("✅ Found nested temporalInsights data");
           return nestedTemporal;
         }
       }
 
       if (temporalData != null && temporalData.isNotEmpty) {
-        debugPrint("✅ Using temporalInsights data directly");
         return temporalData;
       }
     }
@@ -1222,12 +1238,9 @@ class ContentTab extends StatelessWidget {
     }
 
     if (directTimeFields.isNotEmpty) {
-      debugPrint(
-          "✅ Found direct time fields at root: ${directTimeFields.keys.join(', ')}");
       return directTimeFields;
     }
 
-    debugPrint("❌ No timeAnalysis data found");
     return {};
   }
 

@@ -18,6 +18,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late ImportBloc _importBloc;
+  // Cache the future to prevent re-fetching on every build
+  late Future<List<domain.ChatEntity>> _chatsFuture;
 
   @override
   void initState() {
@@ -26,6 +28,11 @@ class _HomePageState extends State<HomePage> {
       importChatUseCase: GetIt.instance.get(),
       fileProvider: GetIt.instance.get(),
     );
+    _refreshChats();
+  }
+
+  void _refreshChats() {
+    _chatsFuture = GetIt.instance.get<domain.ChatRepository>().getImportedChats();
   }
 
   @override
@@ -99,7 +106,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHomeContent(BuildContext context) {
     return FutureBuilder<List<domain.ChatEntity>>(
-      future: GetIt.instance.get<domain.ChatRepository>().getImportedChats(),
+      future: _chatsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -353,7 +360,9 @@ class _HomePageState extends State<HomePage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Chat deleted successfully')),
           );
-          setState(() {}); // Refresh the list
+          setState(() {
+            _refreshChats(); // Refresh the cached future
+          });
         }
       } catch (e) {
         if (context.mounted) {

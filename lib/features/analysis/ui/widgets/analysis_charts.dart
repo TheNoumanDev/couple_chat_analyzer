@@ -81,7 +81,7 @@ class TopUsersChart extends StatelessWidget {
   }
 
   List<PieChartSectionData> _buildPieChartSections(BuildContext context, List validUsers) {
-    final colors = [
+    const colors = [
       Colors.blue,
       Colors.green,
       Colors.orange,
@@ -90,11 +90,12 @@ class TopUsersChart extends StatelessWidget {
       Colors.teal,
     ];
 
-    return validUsers.map((user) {
-      final index = validUsers.indexOf(user);
-      final userData = user as Map<String, dynamic>;
+    // Use asMap().entries to avoid O(n²) indexOf calls
+    return validUsers.asMap().entries.map((entry) {
+      final index = entry.key;
+      final userData = entry.value as Map<String, dynamic>;
       final percentage = userData['percentage'] as double? ?? 0.0;
-      
+
       return PieChartSectionData(
         color: colors[index % colors.length],
         value: percentage,
@@ -110,7 +111,7 @@ class TopUsersChart extends StatelessWidget {
   }
 
   Widget _buildLegend(BuildContext context, List validUsers) {
-    final colors = [
+    const colors = [
       Colors.blue,
       Colors.green,
       Colors.orange,
@@ -122,9 +123,10 @@ class TopUsersChart extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: validUsers.map((user) {
-        final index = validUsers.indexOf(user);
-        final userData = user as Map<String, dynamic>;
+      // Use asMap().entries to avoid O(n²) indexOf calls
+      children: validUsers.asMap().entries.map((entry) {
+        final index = entry.key;
+        final userData = entry.value as Map<String, dynamic>;
         final name = userData['name'] as String? ?? 'Unknown';
         final messageCount = userData['messageCount'] as int? ?? 0;
         final percentage = userData['percentage'] as double? ?? 0.0;
