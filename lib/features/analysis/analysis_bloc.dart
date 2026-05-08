@@ -20,7 +20,10 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
   String? _currentChatId;
   StreamSubscription<double>? _progressSubscription;
 
-  // Static set to track currently analyzing chat IDs across all bloc instances
+  // Static set to track currently analyzing chat IDs across all bloc instances.
+  // Thread-safety note: This is safe because BLoC events are always processed
+  // on the main isolate. The analysis work runs in separate isolates via compute(),
+  // but the state tracking happens only on the main isolate through event handlers.
   static final Set<String> _analyzingChatIds = <String>{};
 
   AnalysisBloc({

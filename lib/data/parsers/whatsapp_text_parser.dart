@@ -80,14 +80,10 @@ Future<void> _parseMessagesInIsolate(
   DateTime? currentTimestamp;
   String currentContent = '';
 
-  int processedLines = 0;
+  // Note: No yielding needed here - this runs in an isolate via compute(),
+  // which is separate from the UI thread. The isolate doesn't have an event
+  // loop that responds to Future.delayed(Duration.zero) anyway.
   for (final line in lines) {
-    // Yield to UI every 100 lines to prevent blocking
-    if (processedLines % 100 == 0 && processedLines > 0) {
-      await Future.delayed(Duration.zero);
-    }
-    processedLines++;
-    
     final parsedMessage = timestampParser.tryParseMessage(line);
     
     if (parsedMessage != null) {

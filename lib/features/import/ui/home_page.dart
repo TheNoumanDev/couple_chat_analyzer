@@ -317,9 +317,16 @@ class _HomePageState extends State<HomePage> {
                   Text('Delete'),
                 ],
               ),
-              onTap: () async {
-                await Future.delayed(const Duration(milliseconds: 100));
-                await _deleteChat(context, chat.id);
+              onTap: () {
+                // Use addPostFrameCallback to ensure popup is fully closed
+                // before showing the delete confirmation dialog.
+                // This is more reliable than Future.delayed(100ms).
+                final chatId = chat.id;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _deleteChat(context, chatId);
+                  }
+                });
               },
             ),
           ],

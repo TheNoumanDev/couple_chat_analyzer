@@ -50,6 +50,9 @@ class _AnalysisPageState extends State<AnalysisPage>
   // Flag to show overlay while tabs are building for the first time
   bool _isFirstBuild = true;
 
+  // Track if a post-frame callback is pending (for dispose safety)
+  bool _pendingFirstBuildCallback = false;
+
   @override
   void initState() {
     super.initState();
@@ -128,6 +131,12 @@ class _AnalysisPageState extends State<AnalysisPage>
     // Clear cache
     _cachedConvertedResults = null;
     _cachedResultsChatId = null;
+    // Note: If _pendingFirstBuildCallback is true, the scheduled callback
+    // will check mounted (which is false after dispose) and safely no-op.
+    if (_pendingFirstBuildCallback) {
+      debugPrint("AnalysisPage: Disposing with pending first-build callback (will be safely ignored)");
+    }
+    _pendingFirstBuildCallback = false;
     super.dispose();
   }
 
@@ -243,8 +252,11 @@ class _AnalysisPageState extends State<AnalysisPage>
               // Defer tab building to next frame to prevent ANR
               if (_isFirstBuild) {
                 _isFirstBuild = false;
+                _pendingFirstBuildCallback = true;
                 // Schedule tab building for next frame
+                // Safety: mounted check ensures setState isn't called on disposed widget
                 WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _pendingFirstBuildCallback = false;
                   if (mounted) {
                     setState(() {}); // Trigger rebuild to show tabs
                   }
