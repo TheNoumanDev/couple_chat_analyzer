@@ -2,8 +2,8 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
 import '../shared/domain.dart';
+import '../core/logger.dart';
 import '../core/utils.dart';
 import 'local.dart';
 import 'parsers/chat_parser.dart';
@@ -13,6 +13,8 @@ import '../features/import/providers/unified_file_provider.dart';
 // CHAT REPOSITORY IMPLEMENTATION
 // ============================================================================
 class ChatRepositoryImpl implements ChatRepository {
+  static const String _tag = 'ChatRepository';
+
   final ChatLocalDataSource localDataSource;
   final UnifiedFileProvider fileProvider;
   final ChatParser chatParser;
@@ -25,45 +27,45 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<ChatEntity> importChat(File file) async {
-    debugPrint("Importing file: ${file.path}");
-    
+    AppLogger.info('Importing file: ${file.path}', tag: _tag);
+
     try {
       // Check if file is a ZIP file by extension or content
       bool isZip = file.path.toLowerCase().endsWith('.zip');
-      
+
       if (!isZip) {
         try {
           final headerBytes = await file.openRead(0, 4).first;
-          isZip = headerBytes.length >= 4 && 
-                  headerBytes[0] == 0x50 && 
-                  headerBytes[1] == 0x4B && 
-                  headerBytes[2] == 0x03 && 
+          isZip = headerBytes.length >= 4 &&
+                  headerBytes[0] == 0x50 &&
+                  headerBytes[1] == 0x4B &&
+                  headerBytes[2] == 0x03 &&
                   headerBytes[3] == 0x04;
-          debugPrint("ZIP detection by content: $isZip");
+          AppLogger.debug('ZIP detection by content: $isZip', tag: _tag);
         } catch (e) {
-          debugPrint("Error checking file header: $e");
+          AppLogger.warning('Error checking file header: $e', tag: _tag);
         }
       }
-      
+
       if (isZip) {
-        debugPrint("File is a ZIP archive, extracting...");
+        AppLogger.info('File is a ZIP archive, extracting...', tag: _tag);
         final chatFile = await ZipUtils.extractWhatsAppChatFromZip(file);
         if (chatFile == null) {
           throw Exception('Could not find chat file in the ZIP archive');
         }
-        debugPrint("Using extracted file: ${chatFile.path}");
+        AppLogger.debug('Using extracted file: ${chatFile.path}', tag: _tag);
         final chat = await chatParser.parseChat(chatFile);
         await localDataSource.saveChat(chat);
         return chat.toEntity();
       } else {
         // Regular file processing
-        debugPrint("Processing as regular file");
+        AppLogger.debug('Processing as regular file', tag: _tag);
         final chat = await chatParser.parseChat(file);
         await localDataSource.saveChat(chat);
         return chat.toEntity();
       }
     } catch (e) {
-      debugPrint("Error importing chat: $e");
+      AppLogger.error('Error importing chat', tag: _tag, error: e);
       throw Exception('Failed to import chat: $e');
     }
   }
@@ -87,8 +89,10 @@ class ChatRepositoryImpl implements ChatRepository {
 }
 
 // ============================================================================
-// ANALYSIS REPOSITORY IMPLEMENTATION
+// ANALYSIS REPOSITORY IMPLEMENTATION (DEPRECATED)
+// Use features/analysis/analysis_repository.dart::AnalysisRepositoryImpl instead
 // ============================================================================
+@Deprecated('Use features/analysis/analysis_repository.dart::AnalysisRepositoryImpl instead')
 class AnalysisRepositoryImpl implements AnalysisRepository {
   final ChatLocalDataSource localDataSource;
 

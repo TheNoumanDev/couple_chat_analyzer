@@ -267,29 +267,29 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
             ),
             const SizedBox(height: 12),
             
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<models.ReportFormat>(
-                    title: const Text('PDF'),
-                    subtitle: const Text('Recommended'),
-                    value: models.ReportFormat.pdf,
-                    groupValue: selectedFormat,
-                    onChanged: (value) => setState(() => selectedFormat = value!),
-                    dense: true,
+            RadioGroup<models.ReportFormat>(
+              groupValue: selectedFormat,
+              onChanged: (value) => setState(() => selectedFormat = value!),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<models.ReportFormat>(
+                      title: const Text('PDF'),
+                      subtitle: const Text('Recommended'),
+                      value: models.ReportFormat.pdf,
+                      dense: true,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: RadioListTile<models.ReportFormat>(
-                    title: const Text('HTML'),
-                    subtitle: const Text('Web page'),
-                    value: models.ReportFormat.html,
-                    groupValue: selectedFormat,
-                    onChanged: (value) => setState(() => selectedFormat = value!),
-                    dense: true,
+                  Expanded(
+                    child: RadioListTile<models.ReportFormat>(
+                      title: const Text('HTML'),
+                      subtitle: const Text('Web page'),
+                      value: models.ReportFormat.html,
+                      dense: true,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             
             const SizedBox(height: 16),
@@ -298,7 +298,7 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -345,7 +345,7 @@ class _ReportOptionsDialogState extends State<ReportOptionsDialog> {
       subtitle: Text(
         subtitle,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       value: value,

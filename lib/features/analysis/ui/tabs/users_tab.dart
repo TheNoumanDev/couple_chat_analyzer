@@ -127,7 +127,7 @@ class UsersTab extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: TextStyle(
@@ -148,7 +148,7 @@ class UsersTab extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _getResponseTimeColor(responseTime).withOpacity(0.1),
+                        color: _getResponseTimeColor(responseTime).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: _getResponseTimeColor(responseTime),
@@ -250,7 +250,7 @@ class UsersTab extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: scoreColor.withOpacity(0.1),
+                color: scoreColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Icon(
@@ -329,14 +329,14 @@ class UsersTab extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                           style: TextStyle(
@@ -367,7 +367,7 @@ class UsersTab extends StatelessWidget {
                             Text(
                               'Avg: ${avgLength.toInt()} chars',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -500,7 +500,7 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
             Text(
               'How each person uses emojis in conversations',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -547,10 +547,10 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: userColor.withOpacity(0.05),
+        color: userColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: userColor.withOpacity(0.2),
+          color: userColor.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -559,7 +559,7 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
           // User avatar
           CircleAvatar(
             radius: 24,
-            backgroundColor: userColor.withOpacity(0.2),
+            backgroundColor: userColor.withValues(alpha: 0.2),
             child: Text(
               userName.isNotEmpty ? userName[0].toUpperCase() : '?',
               style: TextStyle(
@@ -614,7 +614,7 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
             width: 50,
             height: 8,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(4),
             ),
             child: FractionallySizedBox(
@@ -640,7 +640,7 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
         Icon(
           icon,
           size: 16,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
         const SizedBox(width: 4),
         Column(
@@ -657,7 +657,7 @@ class PerUserEmojiBreakdownWidget extends StatelessWidget {
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontSize: 10,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

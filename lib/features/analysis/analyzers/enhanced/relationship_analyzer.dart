@@ -3,17 +3,18 @@
 // Relationship Analyzer - Analyzes relationship dynamics and health
 // ============================================================================
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
+import '../../../../core/logger.dart';
 import '../../../../shared/domain.dart';
 import '../../analysis_models.dart';
 import '../base_analyzer.dart';
 
 class RelationshipAnalyzer implements BaseAnalyzer {
+  static const String _tag = 'RelationshipAnalyzer';
   static const int maxAnalysisMessages = 6000; // Limit for performance
 
   @override
   Future<AnalysisResult> analyze(ChatEntity chat) async {
-    debugPrint("💕 RelationshipAnalyzer: Starting analysis");
+    AppLogger.custom('💕', 'Starting analysis', tag: _tag);
 
     try {
       // Limit messages for performance
@@ -47,7 +48,7 @@ class RelationshipAnalyzer implements BaseAnalyzer {
         'overallAssessment': _generateOverallAssessment(healthScore, supportPatterns, reciprocityPatterns),
       };
 
-      debugPrint("✅ RelationshipAnalyzer: Analysis complete");
+      AppLogger.success('Analysis complete', tag: _tag);
 
       return AnalysisResult(
         type: 'relationship_dynamics',
@@ -57,8 +58,7 @@ class RelationshipAnalyzer implements BaseAnalyzer {
       );
 
     } catch (e, stackTrace) {
-      debugPrint("❌ RelationshipAnalyzer: Error - $e");
-      debugPrint("Stack trace: $stackTrace");
+      AppLogger.error('Error during analysis', tag: _tag, error: e, stackTrace: stackTrace);
       return _createErrorResult(e);
     }
   }
@@ -96,7 +96,7 @@ class RelationshipAnalyzer implements BaseAnalyzer {
       return healthScore.clamp(0.0, 100.0);
 
     } catch (e) {
-      debugPrint("Error calculating relationship health: $e");
+      AppLogger.error('Error calculating relationship health', tag: _tag, error: e);
       return 0.0;
     }
   }

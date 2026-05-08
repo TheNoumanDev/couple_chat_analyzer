@@ -132,14 +132,14 @@ class ContentIntelligenceWidget extends StatelessWidget {
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: scoreColor.withOpacity(0.2),
+                  backgroundColor: scoreColor.withValues(alpha: 0.2),
                   child: Text(
                     userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                     style: TextStyle(
@@ -163,7 +163,7 @@ class ContentIntelligenceWidget extends StatelessWidget {
                       Text(
                         '$vocabularyType • $uniqueWords unique words',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -172,9 +172,9 @@ class ContentIntelligenceWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: scoreColor.withOpacity(0.1),
+                    color: scoreColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: scoreColor.withOpacity(0.3)),
+                    border: Border.all(color: scoreColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     '$complexityScore',

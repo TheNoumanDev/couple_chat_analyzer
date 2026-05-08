@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'chart_constants.dart';
 
 class TopUsersChart extends StatelessWidget {
   final List<dynamic> data;
@@ -11,7 +12,7 @@ class TopUsersChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final validUsers = data.take(6).where((user) {
+    final validUsers = data.take(ChartConstants.maxTopUsers).where((user) {
       final userData = user as Map<String, dynamic>;
       final percentage = userData['percentage'] as double? ?? 0.0;
       return percentage > 0;
@@ -225,7 +226,7 @@ class HourlyActivityChart extends StatelessWidget {
             Text(
               'Messages sent throughout the day',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -248,7 +249,7 @@ class HourlyActivityChart extends StatelessWidget {
                         hourLabel,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
@@ -259,7 +260,7 @@ class HourlyActivityChart extends StatelessWidget {
                       child: Container(
                         height: 24,
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
+                          color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Stack(
@@ -374,7 +375,7 @@ class WeeklyActivityChart extends StatelessWidget {
             Text(
               'Messages per day of the week',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -409,7 +410,7 @@ class WeeklyActivityChart extends StatelessWidget {
                       child: Container(
                         height: 32,
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
+                          color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Stack(
@@ -489,7 +490,7 @@ class MonthlyActivityChart extends StatelessWidget {
         return aMonth.compareTo(bMonth);
       });
       
-      final last12 = sortedData.take(12).toList();
+      final last12 = sortedData.take(ChartConstants.maxMonthsDisplayed).toList();
       
       for (final monthData in last12) {
         final month = (monthData as Map<String, dynamic>)['month'] as String? ?? '';
@@ -528,7 +529,7 @@ class MonthlyActivityChart extends StatelessWidget {
             Text(
               'Messages per month (last ${monthlyData.length} months)',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -540,7 +541,7 @@ class MonthlyActivityChart extends StatelessWidget {
                   child: Text(
                     'No monthly data available',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -574,7 +575,7 @@ class MonthlyActivityChart extends StatelessWidget {
                         child: Container(
                           height: 32,
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Stack(
@@ -649,8 +650,8 @@ class TopConversationDaysChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Take top 10 days
-    final topDays = data.take(10).toList();
+    // Take top days
+    final topDays = data.take(ChartConstants.maxTopItems).toList();
     
     final maxCount = topDays.isEmpty ? 1 : 
         topDays.map((d) => (d as Map<String, dynamic>)['count'] as int? ?? 0)
@@ -678,7 +679,7 @@ class TopConversationDaysChart extends StatelessWidget {
             Text(
               'Days with the most messages',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -690,7 +691,7 @@ class TopConversationDaysChart extends StatelessWidget {
                   child: Text(
                     'No daily data available',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -746,7 +747,7 @@ class TopConversationDaysChart extends StatelessWidget {
                         child: Container(
                           height: 32,
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Stack(
@@ -757,7 +758,7 @@ class TopConversationDaysChart extends StatelessWidget {
                                   widthFactor: percentage,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: _getRankColor(index).withOpacity(0.8),
+                                      color: _getRankColor(index).withValues(alpha: 0.8),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
@@ -848,7 +849,7 @@ class RecentActivityChart extends StatelessWidget {
       return bDate.compareTo(aDate); // Reverse order for recent first
     });
     
-    final recentData = sortedData.take(14).toList();
+    final recentData = sortedData.take(ChartConstants.maxRecentDays).toList();
     
     final maxCount = recentData.isEmpty ? 1 : 
         recentData.map((d) => (d as Map<String, dynamic>)['count'] as int? ?? 0)
@@ -876,7 +877,7 @@ class RecentActivityChart extends StatelessWidget {
             Text(
               'Messages in the last ${recentData.length} days',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 20),
@@ -888,7 +889,7 @@ class RecentActivityChart extends StatelessWidget {
                   child: Text(
                     'No recent activity data available',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -922,7 +923,7 @@ class RecentActivityChart extends StatelessWidget {
                             Text(
                               dayOfWeek,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -935,7 +936,7 @@ class RecentActivityChart extends StatelessWidget {
                         child: Container(
                           height: 28,
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Stack(
@@ -1074,9 +1075,9 @@ class TopEmojisChart extends StatelessWidget {
       return _buildNoDataCard(context);
     }
 
-    // Sort by count (descending) and take top 10
+    // Sort by count (descending) and take top emojis
     validEmojis.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-    final topEmojis = validEmojis.take(10).toList();
+    final topEmojis = validEmojis.take(ChartConstants.maxTopItems).toList();
 
     // Get the maximum count for scaling the bars
     final maxCount = topEmojis.isNotEmpty ? (topEmojis.first['count'] as int) : 1;
@@ -1158,9 +1159,9 @@ class TopEmojisChart extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Center(
               child: Text(
@@ -1188,7 +1189,7 @@ class TopEmojisChart extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.2),
+                        color: color.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -1231,7 +1232,7 @@ class TopEmojisChart extends StatelessWidget {
 
   Widget _buildNoDataCard(BuildContext context) {
     return Card(
-      color: Colors.grey.withOpacity(0.1),
+      color: Colors.grey.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -1239,7 +1240,7 @@ class TopEmojisChart extends StatelessWidget {
             Icon(
               Icons.emoji_emotions,
               size: 48,
-              color: Colors.yellow.withOpacity(0.5),
+              color: Colors.yellow.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 12),
             Text(
@@ -1286,7 +1287,7 @@ class TopDomainsChart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ...data.take(5).map((domain) {
+            ...data.take(ChartConstants.maxTopDomains).map((domain) {
               final domainData = domain as Map<String, dynamic>;
               return ListTile(
                 leading: Icon(
@@ -1402,10 +1403,10 @@ class MessageLengthChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -1441,7 +1442,7 @@ class MessageLengthChart extends StatelessWidget {
 
   Widget _buildNoDataCard(BuildContext context) {
     return Card(
-      color: Colors.grey.withOpacity(0.1),
+      color: Colors.grey.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -1449,7 +1450,7 @@ class MessageLengthChart extends StatelessWidget {
             Icon(
               Icons.bar_chart,
               size: 48,
-              color: Colors.green.withOpacity(0.5),
+              color: Colors.green.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 12),
             Text(
@@ -1565,9 +1566,9 @@ class TimeActivityOverview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

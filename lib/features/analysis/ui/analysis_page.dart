@@ -7,17 +7,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import '../../../widgets/common.dart';
 import '../../reports/reports_bloc.dart';
+import '../../reports/reports_models.dart' show GenerateReportEvent;
 import '../../reports/reports_ui.dart';
 import '../analysis_bloc.dart';
 import '../analysis_models.dart' as models;
-import '../analysis_bloc.dart' show AnalysisBloc;
-import '../../reports/reports_bloc.dart' show ReportsBloc;
-import '../../reports/reports_models.dart' show GenerateReportEvent;
+import 'tabs/content_tab.dart';
+import 'tabs/debug_tab.dart';
+import 'tabs/insights_tab.dart';
 import 'tabs/overview_tab.dart';
 import 'tabs/users_tab.dart';
-import 'tabs/content_tab.dart';
-import 'tabs/insights_tab.dart';
-import 'tabs/debug_tab.dart'; // Added debug tab import
 
 class AnalysisPage extends StatefulWidget {
   final String chatId;
@@ -36,15 +34,18 @@ class _AnalysisPageState extends State<AnalysisPage>
   late AnalysisBloc _analysisBloc;
   late ReportsBloc _reportBloc;
   late TabController _tabController;
-  
+
   // Static tracking to prevent duplicate initialization across widget rebuilds
   static final Set<String> _initializedChats = <String>{};
   static bool _isInitializing = false;
-  
+
+  // Track if this instance was actually initialized (to prevent LateInitializationError)
+  bool _wasInitialized = false;
+
   // Cache for converted results to prevent duplicate conversion during build
   Map<String, dynamic>? _cachedConvertedResults;
   String? _cachedResultsChatId;
-  
+
   // Flag to show overlay while tabs are building for the first time
   bool _isFirstBuild = true;
 
@@ -56,6 +57,7 @@ class _AnalysisPageState extends State<AnalysisPage>
     // Prevent duplicate initialization across all widget instances using static tracking
     if (_initializedChats.contains(widget.chatId) || _isInitializing) {
       debugPrint("⚠️ AnalysisPage: Chat ${widget.chatId} already initialized or initializing, skipping");
+      _wasInitialized = false;
       return;
     }
 
@@ -73,6 +75,9 @@ class _AnalysisPageState extends State<AnalysisPage>
 
       _tabController =
           TabController(length: 5, vsync: this); // Changed from 4 to 5
+
+      // Mark this instance as successfully initialized
+      _wasInitialized = true;
 
       // Mark this chat as initialized before starting analysis
       _initializedChats.add(widget.chatId);
@@ -113,11 +118,14 @@ class _AnalysisPageState extends State<AnalysisPage>
   @override
   void dispose() {
     debugPrint("AnalysisPage: dispose called for chat ${widget.chatId}");
-    _analysisBloc.close();
-    _reportBloc.close();
-    _tabController.dispose();
-    // Remove from initialized set when page is disposed
-    _initializedChats.remove(widget.chatId);
+    // Only dispose resources if this instance was actually initialized
+    if (_wasInitialized) {
+      _analysisBloc.close();
+      _reportBloc.close();
+      _tabController.dispose();
+      // Remove from initialized set when page is disposed
+      _initializedChats.remove(widget.chatId);
+    }
     // Clear cache
     _cachedConvertedResults = null;
     _cachedResultsChatId = null;
@@ -126,6 +134,30 @@ class _AnalysisPageState extends State<AnalysisPage>
 
   @override
   Widget build(BuildContext context) {
+    // Handle case where initialization was skipped (duplicate navigation)
+    if (!_wasInitialized) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Analysis'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.info_outline, size: 48, color: Colors.orange),
+              const SizedBox(height: 16),
+              const Text('Analysis is already in progress.'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _analysisBloc),

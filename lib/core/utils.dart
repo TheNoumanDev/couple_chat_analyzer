@@ -15,7 +15,9 @@ import 'exceptions.dart';
 // ============================================================================
 // DATE UTILITIES
 // ============================================================================
-class DateUtils {
+/// Date utility functions for the app.
+/// Named ChatDateUtils to avoid shadowing Flutter's DateUtils from material.dart.
+class ChatDateUtils {
   static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   static final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
   static final DateFormat _dayFormat = DateFormat('EEEE');
@@ -259,12 +261,15 @@ class StringUtils {
   /// Get user initials from name
   static String getInitials(String name) {
     if (name.trim().isEmpty) return '?';
-    
-    final words = name.trim().split(' ');
+
+    // Filter out empty strings from split (handles multiple spaces)
+    final words = name.trim().split(' ').where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return '?';
+
     if (words.length == 1) {
       return words.first.substring(0, 1).toUpperCase();
     }
-    
+
     return '${words.first.substring(0, 1)}${words.last.substring(0, 1)}'.toUpperCase();
   }
   
