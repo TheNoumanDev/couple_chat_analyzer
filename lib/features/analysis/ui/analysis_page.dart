@@ -5,12 +5,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import '../../../core/services/analysis_state_service.dart';
 import '../../../widgets/common.dart';
 import '../../reports/reports_bloc.dart';
 import '../../reports/reports_models.dart' show GenerateReportEvent;
 import '../../reports/reports_ui.dart';
 import '../analysis_bloc.dart';
 import '../analysis_models.dart' as models;
+import '../analysis_repository.dart';
 import 'tabs/content_tab.dart';
 import 'tabs/debug_tab.dart';
 import 'tabs/insights_tab.dart';
@@ -35,9 +37,8 @@ class _AnalysisPageState extends State<AnalysisPage>
   late ReportsBloc _reportBloc;
   late TabController _tabController;
 
-  // Static tracking to prevent duplicate initialization across widget rebuilds
-  static final Set<String> _initializedChats = <String>{};
-  static bool _isInitializing = false;
+  // Service for tracking initialization state across widget instances
+  final AnalysisStateService _stateService = AnalysisStateService.instance;
 
   // Track if this instance was actually initialized (to prevent LateInitializationError)
   bool _wasInitialized = false;
@@ -54,17 +55,18 @@ class _AnalysisPageState extends State<AnalysisPage>
     super.initState();
     debugPrint("AnalysisPage: initState called with chatId: ${widget.chatId}");
 
-    // Prevent duplicate initialization across all widget instances using static tracking
-    if (_initializedChats.contains(widget.chatId) || _isInitializing) {
+    // Prevent duplicate initialization across all widget instances using service
+    if (!_stateService.tryStartInitialization(widget.chatId)) {
       debugPrint("⚠️ AnalysisPage: Chat ${widget.chatId} already initialized or initializing, skipping");
       _wasInitialized = false;
       return;
     }
 
-    _isInitializing = true;
-
     try {
-      _analysisBloc = AnalysisBloc(analyzeChatUseCase: GetIt.instance.get());
+      _analysisBloc = AnalysisBloc(
+        analyzeChatUseCase: GetIt.instance.get(),
+        analysisRepository: GetIt.instance.get<AnalysisRepository>(),
+      );
 
       _reportBloc = ReportsBloc(
         generateReportUseCase: GetIt.instance.get(),
@@ -79,39 +81,36 @@ class _AnalysisPageState extends State<AnalysisPage>
       // Mark this instance as successfully initialized
       _wasInitialized = true;
 
-      // Mark this chat as initialized before starting analysis
-      _initializedChats.add(widget.chatId);
-      
+      // Mark this chat as initialized
+      _stateService.markInitialized(widget.chatId);
+
       // Wait for next frame to ensure widget tree is built, then start analysis
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           // Check if bloc already has results or is loading before starting
           final currentState = _analysisBloc.state;
-          if (currentState is models.AnalysisSuccess && 
+          if (currentState is models.AnalysisSuccess &&
               currentState.chatId == widget.chatId) {
             debugPrint("ℹ️ AnalysisPage: Analysis already completed, not starting again");
-            _isInitializing = false;
             return;
           }
           if (currentState is models.AnalysisLoading) {
             debugPrint("ℹ️ AnalysisPage: Analysis already in progress, not starting again");
-            _isInitializing = false;
             return;
           }
-          
+
           // Start analysis - the bloc will emit loading state immediately
           _analysisBloc.add(models.StartAnalysisEvent(widget.chatId));
           debugPrint("✅ AnalysisPage: Analysis event sent for chat ${widget.chatId}");
-          _isInitializing = false;
         }
       });
-      
+
       debugPrint("✅ AnalysisPage initialized successfully");
     } catch (e, stackTrace) {
       debugPrint("❌ Error in AnalysisPage initState: $e");
       debugPrint("Stack trace: $stackTrace");
-      _initializedChats.remove(widget.chatId); // Remove on error
-      _isInitializing = false;
+      _stateService.removeInitialized(widget.chatId);
+      _stateService.endInitialization();
     }
   }
 
@@ -123,8 +122,8 @@ class _AnalysisPageState extends State<AnalysisPage>
       _analysisBloc.close();
       _reportBloc.close();
       _tabController.dispose();
-      // Remove from initialized set when page is disposed
-      _initializedChats.remove(widget.chatId);
+      // Remove from service when page is disposed
+      _stateService.removeInitialized(widget.chatId);
     }
     // Clear cache
     _cachedConvertedResults = null;

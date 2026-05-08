@@ -7,6 +7,7 @@ import '../../analysis/ui/analysis_page.dart';
 import '../../../shared/domain.dart' as domain;
 import '../import_bloc.dart';
 import '../import_models.dart';
+import '../import_use_cases.dart';
 import 'import_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -18,6 +19,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late ImportBloc _importBloc;
+  late GetChatsUseCase _getChatsUseCase;
+  late DeleteChatUseCase _deleteChatUseCase;
   // Cache the future to prevent re-fetching on every build
   late Future<List<domain.ChatEntity>> _chatsFuture;
 
@@ -28,11 +31,13 @@ class _HomePageState extends State<HomePage> {
       importChatUseCase: GetIt.instance.get(),
       fileProvider: GetIt.instance.get(),
     );
+    _getChatsUseCase = GetIt.instance.get<GetChatsUseCase>();
+    _deleteChatUseCase = GetIt.instance.get<DeleteChatUseCase>();
     _refreshChats();
   }
 
   void _refreshChats() {
-    _chatsFuture = GetIt.instance.get<domain.ChatRepository>().getImportedChats();
+    _chatsFuture = _getChatsUseCase();
   }
 
   @override
@@ -355,7 +360,7 @@ class _HomePageState extends State<HomePage> {
 
     if (confirmed == true) {
       try {
-        await GetIt.instance.get<domain.ChatRepository>().deleteChat(chatId);
+        await _deleteChatUseCase(chatId);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Chat deleted successfully')),

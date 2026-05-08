@@ -147,3 +147,48 @@ class ImportChatUseCase {
     }
   }
 }
+
+// ============================================================================
+// GET CHATS USE CASE
+// ============================================================================
+
+/// Use case for retrieving all imported chats.
+class GetChatsUseCase {
+  final ChatRepository repository;
+
+  GetChatsUseCase(this.repository);
+
+  Future<List<ChatEntity>> call() async {
+    debugPrint("GetChatsUseCase: Fetching all imported chats");
+    try {
+      final chats = await repository.getImportedChats();
+      debugPrint("GetChatsUseCase: Found ${chats.length} chats");
+      return chats;
+    } catch (e) {
+      debugPrint("GetChatsUseCase: Error fetching chats: $e");
+      rethrow;
+    }
+  }
+}
+
+// ============================================================================
+// DELETE CHAT USE CASE
+// ============================================================================
+
+/// Use case for deleting a chat by ID.
+class DeleteChatUseCase {
+  final ChatRepository repository;
+
+  DeleteChatUseCase(this.repository);
+
+  Future<void> call(String chatId) async {
+    debugPrint("DeleteChatUseCase: Deleting chat $chatId");
+    try {
+      await repository.deleteChat(chatId);
+      debugPrint("DeleteChatUseCase: Chat $chatId deleted successfully");
+    } catch (e) {
+      debugPrint("DeleteChatUseCase: Error deleting chat: $e");
+      rethrow;
+    }
+  }
+}

@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get_it/get_it.dart';
 import 'analysis_use_cases.dart';
 import 'analysis_repository.dart';
 import 'analysis_models.dart' show AnalysisEvent, AnalysisState, StartAnalysisEvent, RefreshAnalysisEvent, ClearAnalysisEvent, UpdateAnalysisConfigEvent, AnalysisInitial, AnalysisLoading, AnalysisSuccess, AnalysisError, AnalysisConfig, ChatAnalysisResult;
@@ -15,17 +14,20 @@ import 'analysis_models.dart' show AnalysisEvent, AnalysisState, StartAnalysisEv
 // ============================================================================
 class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
   final AnalyzeChatUseCase _analyzeChatUseCase;
-  
+  final AnalysisRepository _analysisRepository;
+
   // Current analysis tracking
   String? _currentChatId;
   StreamSubscription<double>? _progressSubscription;
-  
+
   // Static set to track currently analyzing chat IDs across all bloc instances
   static final Set<String> _analyzingChatIds = <String>{};
 
   AnalysisBloc({
     required AnalyzeChatUseCase analyzeChatUseCase,
+    required AnalysisRepository analysisRepository,
   }) : _analyzeChatUseCase = analyzeChatUseCase,
+       _analysisRepository = analysisRepository,
        super(AnalysisInitial()) {
     
     // Register event handlers
@@ -70,8 +72,7 @@ class AnalysisBloc extends Bloc<AnalysisEvent, AnalysisState> {
       
       // Try to load existing results from repository directly (don't trigger new analysis)
       try {
-        final repository = GetIt.instance.get<AnalysisRepository>();
-        final existingResults = await repository.getAnalysisResults(event.chatId);
+        final existingResults = await _analysisRepository.getAnalysisResults(event.chatId);
         if (existingResults != null && existingResults.isNotEmpty) {
           debugPrint("✅ Found existing results, loading them...");
           emit(AnalysisSuccess(

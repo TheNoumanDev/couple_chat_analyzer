@@ -94,8 +94,16 @@ Future<void> initDependencies() async {
     // USE CASES
     // ========================================================================
     
-    // Import use cases - Fix: positional parameter
+    // Import use cases
     getIt.registerFactory<ImportChatUseCase>(() => ImportChatUseCase(
+          getIt<domain.ChatRepository>(),
+        ));
+
+    getIt.registerFactory<GetChatsUseCase>(() => GetChatsUseCase(
+          getIt<domain.ChatRepository>(),
+        ));
+
+    getIt.registerFactory<DeleteChatUseCase>(() => DeleteChatUseCase(
           getIt<domain.ChatRepository>(),
         ));
 
@@ -146,7 +154,7 @@ void _logRegisteredServices() {
   debugPrint("  - AnalysisRepository: ${getIt.isRegistered<analysis_repo.AnalysisRepository>()}");
   debugPrint("  - Core Analyzers: 4 registered");
   debugPrint("  - Enhanced Analyzers: 5 registered");
-  debugPrint("  - Use Cases: 6 registered");
+  debugPrint("  - Use Cases: 8 registered");
 }
 
 /// Clean up dependencies (useful for testing)

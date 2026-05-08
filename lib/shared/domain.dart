@@ -83,13 +83,5 @@ abstract class ChatRepository {
   Future<void> deleteChat(String id);
 }
 
-// Analysis Repository Interface
-// DEPRECATED: Use features/analysis/analysis_repository.dart::AnalysisRepository instead
-// This interface is kept for backward compatibility but should not be used in new code
-@Deprecated('Use features/analysis/analysis_repository.dart::AnalysisRepository instead')
-abstract class AnalysisRepository {
-  Future<Map<String, dynamic>?> getAnalysisResults(String chatId);
-  Future<void> saveAnalysisResults(String chatId, Map<String, dynamic> results);
-  Future<void> deleteAnalysisResults(String chatId);
-  Future<File> generateReport(String chatId, Map<String, dynamic> results);
-}
+// NOTE: AnalysisRepository interface has been moved to:
+// lib/features/analysis/analysis_repository.dart
