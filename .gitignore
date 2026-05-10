@@ -44,3 +44,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# API Keys - DO NOT COMMIT
+lib/core/config/api_config.dart

@@ -27,6 +27,10 @@ import '../features/analysis/analyzers/enhanced/behavior_pattern_analyzer.dart';
 import '../features/analysis/analyzers/enhanced/relationship_analyzer.dart';
 import '../features/analysis/analyzers/enhanced/content_intelligence_analyzer.dart';
 import '../features/analysis/analyzers/enhanced/temporal_insight_analyzer.dart';
+import '../features/analysis/analyzers/enhanced/linguistic_analyzer.dart';
+import '../features/analysis/analyzers/enhanced/emotional_intelligence_analyzer.dart';
+import '../features/analysis/analyzers/enhanced/attachment_pattern_analyzer.dart';
+import '../features/analysis/analyzers/enhanced/personality_trait_analyzer.dart';
 
 // Import feature imports
 import '../features/import/import_use_cases.dart';
@@ -34,6 +38,13 @@ import '../features/import/providers/unified_file_provider.dart';
 
 // Reports feature imports
 import '../features/reports/reports_use_cases.dart';
+
+// Services
+import '../features/analysis/services/stats_aggregator.dart';
+import '../features/ai_insights/ai_insights.dart';
+
+// Config
+import 'config/api_config.dart';
 
 final getIt = GetIt.instance;
 
@@ -90,6 +101,33 @@ Future<void> initDependencies() async {
     getIt.registerFactory<ContentIntelligenceAnalyzer>(() => ContentIntelligenceAnalyzer());
     getIt.registerFactory<TemporalInsightAnalyzer>(() => TemporalInsightAnalyzer());
 
+    // New Enhanced Analyzers (Phase 1 - LLM prep)
+    getIt.registerFactory<LinguisticAnalyzer>(() => LinguisticAnalyzer());
+    getIt.registerFactory<EmotionalIntelligenceAnalyzer>(() => EmotionalIntelligenceAnalyzer());
+    getIt.registerFactory<AttachmentPatternAnalyzer>(() => AttachmentPatternAnalyzer());
+    getIt.registerFactory<PersonalityTraitAnalyzer>(() => PersonalityTraitAnalyzer());
+
+    // ========================================================================
+    // SERVICES
+    // ========================================================================
+
+    // Stats Aggregator for LLM preparation
+    getIt.registerLazySingleton<StatsAggregator>(() => StatsAggregator());
+
+    // AI Insights Service - auto-configured with API key
+    final aiInsightsService = AIInsightsService(
+      statsAggregator: getIt<StatsAggregator>(),
+    );
+    // Auto-configure with DeepSeek API key if available
+    if (ApiConfig.isDeepSeekConfigured) {
+      aiInsightsService.configure(
+        apiKey: ApiConfig.deepseekApiKey,
+        providerType: LLMProviderType.deepseek,
+      );
+      debugPrint("🤖 AI Insights configured with DeepSeek API");
+    }
+    getIt.registerLazySingleton<AIInsightsService>(() => aiInsightsService);
+
     // ========================================================================
     // USE CASES
     // ========================================================================
@@ -107,7 +145,7 @@ Future<void> initDependencies() async {
           getIt<domain.ChatRepository>(),
         ));
 
-    // Analysis use cases - Fix: include all required analyzers with correct types
+    // Analysis use cases - Include all analyzers with correct types
     getIt.registerFactory<AnalyzeChatUseCase>(() => AnalyzeChatUseCase(
           chatRepository: getIt<domain.ChatRepository>(),
           analysisRepository: getIt<analysis_repo.AnalysisRepository>(),
@@ -120,6 +158,11 @@ Future<void> initDependencies() async {
           relationshipAnalyzer: getIt<RelationshipAnalyzer>(),
           contentIntelligenceAnalyzer: getIt<ContentIntelligenceAnalyzer>(),
           temporalInsightAnalyzer: getIt<TemporalInsightAnalyzer>(),
+          // Phase 1 LLM-prep analyzers
+          linguisticAnalyzer: getIt<LinguisticAnalyzer>(),
+          emotionalIntelligenceAnalyzer: getIt<EmotionalIntelligenceAnalyzer>(),
+          attachmentPatternAnalyzer: getIt<AttachmentPatternAnalyzer>(),
+          personalityTraitAnalyzer: getIt<PersonalityTraitAnalyzer>(),
         ));
 
     // Reports use cases
@@ -153,7 +196,7 @@ void _logRegisteredServices() {
   debugPrint("  - ChatRepository: ${getIt.isRegistered<domain.ChatRepository>()}");
   debugPrint("  - AnalysisRepository: ${getIt.isRegistered<analysis_repo.AnalysisRepository>()}");
   debugPrint("  - Core Analyzers: 4 registered");
-  debugPrint("  - Enhanced Analyzers: 5 registered");
+  debugPrint("  - Enhanced Analyzers: 9 registered (5 base + 4 LLM-prep)");
   debugPrint("  - Use Cases: 8 registered");
 }
 

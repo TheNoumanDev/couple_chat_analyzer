@@ -293,32 +293,24 @@ class UserStatisticsWidget extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTimelineCardWithMessage(
-                context,
-                'First Message',
-                firstMessageDate ?? 'No data',
-                firstMessageTime ?? 'No data',
-                firstMessageContent ?? 'No message',
-                Icons.play_arrow,
-                Colors.green,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTimelineCardWithMessage(
-                context,
-                'Last Message',
-                lastMessageDate ?? 'No data',
-                lastMessageTime ?? 'No data',
-                lastMessageContent ?? 'No message',
-                Icons.stop,
-                Colors.red,
-              ),
-            ),
-          ],
+        _buildTimelineCardWithMessage(
+          context,
+          'First Message',
+          firstMessageDate ?? 'No data',
+          firstMessageTime ?? 'No data',
+          firstMessageContent ?? 'No message',
+          Icons.play_arrow,
+          Colors.green,
+        ),
+        const SizedBox(height: 8),
+        _buildTimelineCardWithMessage(
+          context,
+          'Last Message',
+          lastMessageDate ?? 'No data',
+          lastMessageTime ?? 'No data',
+          lastMessageContent ?? 'No message',
+          Icons.stop,
+          Colors.red,
         ),
       ],
     );

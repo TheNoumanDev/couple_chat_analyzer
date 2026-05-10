@@ -15,6 +15,11 @@ import 'analyzers/enhanced/behavior_pattern_analyzer.dart';
 import 'analyzers/enhanced/relationship_analyzer.dart';
 import 'analyzers/enhanced/content_intelligence_analyzer.dart';
 import 'analyzers/enhanced/temporal_insight_analyzer.dart';
+// Phase 1 LLM-prep analyzers
+import 'analyzers/enhanced/linguistic_analyzer.dart';
+import 'analyzers/enhanced/emotional_intelligence_analyzer.dart';
+import 'analyzers/enhanced/attachment_pattern_analyzer.dart';
+import 'analyzers/enhanced/personality_trait_analyzer.dart';
 
 class AnalyzeChatUseCase {
   final domain.ChatRepository chatRepository;
@@ -28,6 +33,11 @@ class AnalyzeChatUseCase {
   final RelationshipAnalyzer relationshipAnalyzer;
   final ContentIntelligenceAnalyzer contentIntelligenceAnalyzer;
   final TemporalInsightAnalyzer temporalInsightAnalyzer;
+  // Phase 1 LLM-prep analyzers
+  final LinguisticAnalyzer linguisticAnalyzer;
+  final EmotionalIntelligenceAnalyzer emotionalIntelligenceAnalyzer;
+  final AttachmentPatternAnalyzer attachmentPatternAnalyzer;
+  final PersonalityTraitAnalyzer personalityTraitAnalyzer;
 
   AnalyzeChatUseCase({
     required this.chatRepository,
@@ -41,6 +51,10 @@ class AnalyzeChatUseCase {
     required this.relationshipAnalyzer,
     required this.contentIntelligenceAnalyzer,
     required this.temporalInsightAnalyzer,
+    required this.linguisticAnalyzer,
+    required this.emotionalIntelligenceAnalyzer,
+    required this.attachmentPatternAnalyzer,
+    required this.personalityTraitAnalyzer,
   });
 
   Future<ChatAnalysisResult> execute({
@@ -156,6 +170,27 @@ class AnalyzeChatUseCase {
         );
       }
 
+      // Phase 1 LLM-prep analyzers
+      if (config.includeLinguisticAnalysis) {
+        final linguisticResults = await linguisticAnalyzer.analyze(chat);
+        analysisResults['linguistic'] = linguisticResults;
+      }
+
+      if (config.includeEmotionalIntelligenceAnalysis) {
+        final emotionalResults = await emotionalIntelligenceAnalyzer.analyze(chat);
+        analysisResults['emotionalIntelligence'] = emotionalResults;
+      }
+
+      if (config.includeAttachmentPatternAnalysis) {
+        final attachmentResults = await attachmentPatternAnalyzer.analyze(chat);
+        analysisResults['attachmentPatterns'] = attachmentResults;
+      }
+
+      if (config.includePersonalityTraitAnalysis) {
+        final personalityResults = await personalityTraitAnalyzer.analyze(chat);
+        analysisResults['personalityTraits'] = personalityResults;
+      }
+
       final chatAnalysisResult = ChatAnalysisResult(
         chatId: chatId,
         results: analysisResults,
@@ -244,6 +279,60 @@ class AnalyzeChatUseCase {
         confidence: 0.8,
         generatedAt: DateTime.now(),
       );
+
+      // Content analyzer - essential for Content tab
+      final contentResults = await contentAnalyzer.analyze(chat);
+      analysisResults['content'] = AnalysisResult(
+        type: 'content',
+        data: contentResults,
+        confidence: 0.8,
+        generatedAt: DateTime.now(),
+      );
+
+      // Enhanced analyzers - essential for Insights tab
+      debugPrint("AnalyzeChatUseCase: Running enhanced analyzers for large chat");
+
+      final conversationResults = await conversationDynamicsAnalyzer.analyze(chat);
+      analysisResults['conversationDynamics'] = conversationResults;
+
+      final behaviorResults = await behaviorPatternAnalyzer.analyze(chat);
+      analysisResults['behaviorPatterns'] = behaviorResults;
+
+      final relationshipResults = await relationshipAnalyzer.analyze(chat);
+      analysisResults['relationshipDynamics'] = relationshipResults;
+
+      final contentIntelligenceResults = await contentIntelligenceAnalyzer.analyze(chat);
+      analysisResults['contentIntelligence'] = AnalysisResult(
+        type: 'contentIntelligence',
+        data: contentIntelligenceResults,
+        confidence: 0.7,
+        generatedAt: DateTime.now(),
+      );
+
+      final temporalResults = await temporalInsightAnalyzer.analyze(chat);
+      analysisResults['temporalInsights'] = AnalysisResult(
+        type: 'temporalInsights',
+        data: temporalResults,
+        confidence: 0.7,
+        generatedAt: DateTime.now(),
+      );
+
+      // Phase 1 LLM-prep analyzers (optimized path)
+      debugPrint("AnalyzeChatUseCase: Running Phase 1 LLM-prep analyzers");
+
+      final linguisticResults = await linguisticAnalyzer.analyze(chat);
+      analysisResults['linguistic'] = linguisticResults;
+
+      final emotionalResults = await emotionalIntelligenceAnalyzer.analyze(chat);
+      analysisResults['emotionalIntelligence'] = emotionalResults;
+
+      final attachmentResults = await attachmentPatternAnalyzer.analyze(chat);
+      analysisResults['attachmentPatterns'] = attachmentResults;
+
+      final personalityResults = await personalityTraitAnalyzer.analyze(chat);
+      analysisResults['personalityTraits'] = personalityResults;
+
+      debugPrint("AnalyzeChatUseCase: Enhanced analyzers complete");
 
       // Add optimization metadata
       analysisResults['optimization'] = AnalysisResult(

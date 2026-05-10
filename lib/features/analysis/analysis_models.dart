@@ -193,6 +193,11 @@ class AnalysisConfig {
   final bool includeConversationDynamics;
   final bool includeContentIntelligence;
   final bool includeTemporalInsights;
+  // New Phase 1 analyzers for LLM preparation
+  final bool includeLinguisticAnalysis;
+  final bool includeEmotionalIntelligenceAnalysis;
+  final bool includeAttachmentPatternAnalysis;
+  final bool includePersonalityTraitAnalysis;
   final int maxMessagesToAnalyze;
 
   const AnalysisConfig({
@@ -205,6 +210,10 @@ class AnalysisConfig {
     this.includeConversationDynamics = true,
     this.includeContentIntelligence = true,
     this.includeTemporalInsights = true,
+    this.includeLinguisticAnalysis = true,
+    this.includeEmotionalIntelligenceAnalysis = true,
+    this.includeAttachmentPatternAnalysis = true,
+    this.includePersonalityTraitAnalysis = true,
     this.maxMessagesToAnalyze = 10000,
   });
 
@@ -218,6 +227,10 @@ class AnalysisConfig {
       includeRelationshipAnalysis: false,
       includeBehaviorAnalysis: false,
       includeConversationDynamics: false,
+      includeLinguisticAnalysis: false,
+      includeEmotionalIntelligenceAnalysis: false,
+      includeAttachmentPatternAnalysis: false,
+      includePersonalityTraitAnalysis: false,
       maxMessagesToAnalyze: 5000,
     );
   }
@@ -233,6 +246,10 @@ class AnalysisConfig {
       'includeConversationDynamics': includeConversationDynamics,
       'includeContentIntelligence': includeContentIntelligence,
       'includeTemporalInsights': includeTemporalInsights,
+      'includeLinguisticAnalysis': includeLinguisticAnalysis,
+      'includeEmotionalIntelligenceAnalysis': includeEmotionalIntelligenceAnalysis,
+      'includeAttachmentPatternAnalysis': includeAttachmentPatternAnalysis,
+      'includePersonalityTraitAnalysis': includePersonalityTraitAnalysis,
       'maxMessagesToAnalyze': maxMessagesToAnalyze,
     };
   }
@@ -248,6 +265,10 @@ class AnalysisConfig {
       includeConversationDynamics: json['includeConversationDynamics'] ?? true,
       includeContentIntelligence: json['includeContentIntelligence'] ?? true,
       includeTemporalInsights: json['includeTemporalInsights'] ?? true,
+      includeLinguisticAnalysis: json['includeLinguisticAnalysis'] ?? true,
+      includeEmotionalIntelligenceAnalysis: json['includeEmotionalIntelligenceAnalysis'] ?? true,
+      includeAttachmentPatternAnalysis: json['includeAttachmentPatternAnalysis'] ?? true,
+      includePersonalityTraitAnalysis: json['includePersonalityTraitAnalysis'] ?? true,
       maxMessagesToAnalyze: json['maxMessagesToAnalyze'] ?? 10000,
     );
   }

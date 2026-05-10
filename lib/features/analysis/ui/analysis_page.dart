@@ -10,11 +10,11 @@ import '../../../widgets/common.dart';
 import '../../reports/reports_bloc.dart';
 import '../../reports/reports_models.dart' show GenerateReportEvent;
 import '../../reports/reports_ui.dart';
+import '../../ai_insights/ai_insights.dart' show AIInsightsService, AIInsightsBloc, GenerateInsightsEvent, AIInsightsTab;
 import '../analysis_bloc.dart';
 import '../analysis_models.dart' as models;
 import '../analysis_repository.dart';
 import 'tabs/content_tab.dart';
-import 'tabs/debug_tab.dart';
 import 'tabs/insights_tab.dart';
 import 'tabs/overview_tab.dart';
 import 'tabs/users_tab.dart';
@@ -35,6 +35,7 @@ class _AnalysisPageState extends State<AnalysisPage>
     with SingleTickerProviderStateMixin {
   late AnalysisBloc _analysisBloc;
   late ReportsBloc _reportBloc;
+  late AIInsightsBloc _aiInsightsBloc;
   late TabController _tabController;
 
   // Service for tracking initialization state across widget instances
@@ -78,8 +79,12 @@ class _AnalysisPageState extends State<AnalysisPage>
         getReportHistoryUseCase: GetIt.instance.get(),
       );
 
+      _aiInsightsBloc = AIInsightsBloc(
+        service: GetIt.instance.get<AIInsightsService>(),
+      );
+
       _tabController =
-          TabController(length: 5, vsync: this); // Changed from 4 to 5
+          TabController(length: 5, vsync: this); // Overview, Users, Content, Insights, AI
 
       // Mark this instance as successfully initialized
       _wasInitialized = true;
@@ -124,6 +129,7 @@ class _AnalysisPageState extends State<AnalysisPage>
     if (_wasInitialized) {
       _analysisBloc.close();
       _reportBloc.close();
+      _aiInsightsBloc.close();
       _tabController.dispose();
       // Remove from service when page is disposed
       _stateService.removeInitialized(widget.chatId);
@@ -170,141 +176,152 @@ class _AnalysisPageState extends State<AnalysisPage>
       providers: [
         BlocProvider.value(value: _analysisBloc),
         BlocProvider.value(value: _reportBloc),
+        BlocProvider.value(value: _aiInsightsBloc),
       ],
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Analysis: ${widget.chatId.substring(0, 8)}...'),
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true, // Changed to scrollable for 5 tabs
-            tabs: const [
-              Tab(icon: Icon(Icons.summarize), text: 'Overview'),
-              Tab(icon: Icon(Icons.people), text: 'Users'),
-              Tab(icon: Icon(Icons.analytics), text: 'Content'),
-              Tab(icon: Icon(Icons.psychology), text: 'Insights'),
-              Tab(
-                  icon: Icon(Icons.bug_report),
-                  text: 'Debug'), // Added debug tab
+      child: BlocListener<AnalysisBloc, models.AnalysisState>(
+        listener: (context, state) {
+          // Pre-fetch AI insights when analysis completes
+          if (state is models.AnalysisSuccess) {
+            debugPrint("AnalysisPage: Analysis complete, pre-fetching AI insights");
+            _aiInsightsBloc.add(GenerateInsightsEvent(
+              analysisResult: state.result,
+              forceRefresh: false,
+            ));
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('Analysis: ${widget.chatId.substring(0, 8)}...'),
+            bottom: TabBar(
+              controller: _tabController,
+              isScrollable: true, // Changed to scrollable for 5 tabs
+              tabs: const [
+                Tab(icon: Icon(Icons.summarize), text: 'Overview'),
+                Tab(icon: Icon(Icons.people), text: 'Users'),
+                Tab(icon: Icon(Icons.analytics), text: 'Content'),
+                Tab(icon: Icon(Icons.psychology), text: 'Insights'),
+                Tab(icon: Icon(Icons.auto_awesome), text: 'AI'),
+              ],
+            ),
+            actions: [
+              BlocBuilder<AnalysisBloc, models.AnalysisState>(
+                builder: (context, state) {
+                  if (state is models.AnalysisSuccess) {
+                    return IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Refresh Analysis',
+                      onPressed: () {
+                        _analysisBloc.add(models.RefreshAnalysisEvent(widget.chatId));
+                      },
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ],
           ),
-          actions: [
-            BlocBuilder<AnalysisBloc, models.AnalysisState>(
-              builder: (context, state) {
-                if (state is models.AnalysisSuccess) {
-                  return IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Refresh Analysis',
-                    onPressed: () {
-                      _analysisBloc.add(models.RefreshAnalysisEvent(widget.chatId));
-                    },
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
-        body: BlocBuilder<AnalysisBloc, models.AnalysisState>(
-          builder: (context, state) {
-            if (state is models.AnalysisLoading) {
-              return LoadingIndicator(
-                message: state.message,
-              );
-            }
-
-            if (state is models.AnalysisError) {
-              return _buildErrorView(context, state);
-            }
-
-            if (state is models.AnalysisSuccess) {
-              // Use cached conversion or convert once
-              Map<String, dynamic> results;
-              if (_cachedResultsChatId == state.chatId && _cachedConvertedResults != null) {
-                results = _cachedConvertedResults!;
-                debugPrint("✅ Using cached converted results for ${state.chatId}");
-              } else {
-                // Convert and cache
-                results = _convertAnalysisResultToMap(state.result);
-                _cachedConvertedResults = results;
-                _cachedResultsChatId = state.chatId;
-                debugPrint("✅ Converted and cached results for ${state.chatId}");
-              }
-
-              // Check if we have any valid results (not just error)
-              final hasErrorOnly = results.containsKey('error') && 
-                                   results['error'] is Map && 
-                                   (results['error'] as Map)['error'] == true;
-              
-              if (hasErrorOnly && !results.containsKey('summary')) {
-                return _buildErrorView(
-                    context,
-                    models.AnalysisError(
-                        "Analysis failed. ${(results['error'] as Map?)?['errorMessage'] ?? 'Unknown error'}"));
-              }
-
-              // If we have partial results (some analyzers succeeded), show them
-              // Generate minimal summary if missing
-              if (!results.containsKey('summary') && !hasErrorOnly) {
-                // Try to generate a basic summary from available data
-                results['summary'] = _generateMinimalSummary(state.result);
-              }
-
-              // Defer tab building to next frame to prevent ANR
-              if (_isFirstBuild) {
-                _isFirstBuild = false;
-                _pendingFirstBuildCallback = true;
-                // Schedule tab building for next frame
-                // Safety: mounted check ensures setState isn't called on disposed widget
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _pendingFirstBuildCallback = false;
-                  if (mounted) {
-                    setState(() {}); // Trigger rebuild to show tabs
-                  }
-                });
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Preparing results...'),
-                    ],
-                  ),
+          body: BlocBuilder<AnalysisBloc, models.AnalysisState>(
+            builder: (context, state) {
+              if (state is models.AnalysisLoading) {
+                return LoadingIndicator(
+                  message: state.message,
                 );
               }
-              
-              return TabBarView(
-                controller: _tabController,
-                children: [
-                  OverviewTab(results: results),
-                  UsersTab(results: results),
-                  ContentTab(results: results),
-                  InsightsTab(results: results),
-                  DebugTab(results: results), // Added debug tab
-                ],
-              );
-            }
 
-            // If we reach here, state is AnalysisInitial
-            // This shouldn't happen after initState, but show loading as fallback
-            return const LoadingIndicator(
-              message: 'Initializing analysis...',
-            );
-          },
-        ),
-        floatingActionButton: BlocBuilder<AnalysisBloc, models.AnalysisState>(
-          builder: (context, state) {
-            if (state is models.AnalysisSuccess) {
-              // Use cached results
-              final results = _cachedConvertedResults ?? _convertAnalysisResultToMap(state.result);
-              return FloatingActionButton.extended(
-                onPressed: () => _generateReport(context, results),
-                icon: const Icon(Icons.file_download),
-                label: const Text('Generate Report'),
+              if (state is models.AnalysisError) {
+                return _buildErrorView(context, state);
+              }
+
+              if (state is models.AnalysisSuccess) {
+                // Use cached conversion or convert once
+                Map<String, dynamic> results;
+                if (_cachedResultsChatId == state.chatId && _cachedConvertedResults != null) {
+                  results = _cachedConvertedResults!;
+                  debugPrint("✅ Using cached converted results for ${state.chatId}");
+                } else {
+                  // Convert and cache
+                  results = _convertAnalysisResultToMap(state.result);
+                  _cachedConvertedResults = results;
+                  _cachedResultsChatId = state.chatId;
+                  debugPrint("✅ Converted and cached results for ${state.chatId}");
+                }
+
+                // Check if we have any valid results (not just error)
+                final hasErrorOnly = results.containsKey('error') &&
+                                     results['error'] is Map &&
+                                     (results['error'] as Map)['error'] == true;
+
+                if (hasErrorOnly && !results.containsKey('summary')) {
+                  return _buildErrorView(
+                      context,
+                      models.AnalysisError(
+                          "Analysis failed. ${(results['error'] as Map?)?['errorMessage'] ?? 'Unknown error'}"));
+                }
+
+                // If we have partial results (some analyzers succeeded), show them
+                // Generate minimal summary if missing
+                if (!results.containsKey('summary') && !hasErrorOnly) {
+                  // Try to generate a basic summary from available data
+                  results['summary'] = _generateMinimalSummary(state.result);
+                }
+
+                // Defer tab building to next frame to prevent ANR
+                if (_isFirstBuild) {
+                  _isFirstBuild = false;
+                  _pendingFirstBuildCallback = true;
+                  // Schedule tab building for next frame
+                  // Safety: mounted check ensures setState isn't called on disposed widget
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _pendingFirstBuildCallback = false;
+                    if (mounted) {
+                      setState(() {}); // Trigger rebuild to show tabs
+                    }
+                  });
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Preparing results...'),
+                      ],
+                    ),
+                  );
+                }
+
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    OverviewTab(results: results),
+                    UsersTab(results: results),
+                    ContentTab(results: results),
+                    InsightsTab(results: results),
+                    AIInsightsTab(analysisResult: state.result),
+                  ],
+                );
+              }
+
+              // If we reach here, state is AnalysisInitial
+              // This shouldn't happen after initState, but show loading as fallback
+              return const LoadingIndicator(
+                message: 'Initializing analysis...',
               );
-            }
-            return const SizedBox.shrink();
-          },
+            },
+          ),
+          floatingActionButton: BlocBuilder<AnalysisBloc, models.AnalysisState>(
+            builder: (context, state) {
+              if (state is models.AnalysisSuccess) {
+                // Use cached results
+                final results = _cachedConvertedResults ?? _convertAnalysisResultToMap(state.result);
+                return FloatingActionButton.extended(
+                  onPressed: () => _generateReport(context, results),
+                  icon: const Icon(Icons.file_download),
+                  label: const Text('Generate Report'),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );
